@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, ClipboardList } from 'lucide-react'
 import { TaskFilterBar } from '@/components/task/TaskFilterBar'
 import { useTaskStore } from '@/stores/taskStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const PRIORITY_DOT: Record<string, string> = {
   high: 'bg-priority-high',
@@ -109,10 +110,16 @@ export function GlobalTasksPage() {
       </div>
       <div className="flex-1 overflow-y-auto bg-bg-primary">
         {grouped.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <span className="text-sm text-text-muted">暂无跨项目任务</span>
-            <span className="text-xs text-text-muted mt-1">在思维导图中将节点转为任务即可追踪</span>
-          </div>
+          <EmptyState
+            icon={ClipboardList}
+            title="暂无跨项目任务"
+            description="在思维导图中将节点转为任务，即可在这里跨项目追踪"
+            action={{
+              label: '新建项目',
+              onClick: () => {},
+            }}
+            tone="blue"
+          />
         )}
         {grouped.map(({ project, tasks }) => {
           const isCollapsed = collapsed.has(project.id)

@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Plus, ClipboardList } from 'lucide-react'
 import { ViewHeader } from '@/components/layout/ViewHeader'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const COLUMNS: { status: string; title: string }[] = [
   { status: 'todo', title: '待办' },
@@ -113,9 +114,13 @@ export function ProjectBoardPage() {
                   </div>
                 ))}
                 {tasks.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <span className="text-xs text-text-muted">还没有任务</span>
-                  </div>
+                  <EmptyState
+                    icon={ClipboardList}
+                    title="还没有任务"
+                    description="在思维导图视图中将节点转为任务，即可在看板中追踪"
+                    tone="slate"
+                    compact
+                  />
                 )}
               </div>
               <button

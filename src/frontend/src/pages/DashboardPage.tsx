@@ -10,10 +10,13 @@ import {
   ArrowRight,
   Flame,
   CalendarClock,
+  FolderOpen,
+  Inbox,
 } from 'lucide-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const PROJECT_COLORS: Record<string, string> = {
   indigo: 'bg-project-indigo',
@@ -249,10 +252,12 @@ export function DashboardPage() {
               </button>
             </div>
             {projectStats.length === 0 && (
-              <div className="bg-bg-surface border border-border-default rounded-xl p-6 text-center">
-                <span className="text-sm text-text-muted">暂无项目任务数据</span>
-                <p className="text-2xs text-text-muted mt-1">在思维导图中将节点转为任务后开始追踪</p>
-              </div>
+              <EmptyState
+                icon={FolderOpen}
+                title="暂无项目任务数据"
+                description="在思维导图中将节点转为任务后开始追踪进度"
+                tone="indigo"
+              />
             )}
             {projectStats.map(({ project, tasks }) => (
               <ProjectProgress
@@ -340,9 +345,13 @@ export function DashboardPage() {
                 <span className="text-xs font-medium text-text-primary">高优任务</span>
               </div>
               {highPriorityTasks.length === 0 ? (
-                <div className="p-4 text-center">
-                  <span className="text-2xs text-text-muted">暂无高优先级待办</span>
-                </div>
+                <EmptyState
+                  icon={Inbox}
+                  title="暂无高优先级待办"
+                  description="设置任务优先级为「高优」或「紧急」，它们会显示在这里"
+                  tone="rose"
+                  compact
+                />
               ) : (
                 <div className="p-2 flex flex-col gap-0.5">
                   {highPriorityTasks.map((task) => {

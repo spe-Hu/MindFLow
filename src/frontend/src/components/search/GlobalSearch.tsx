@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, FolderKanban, FileText, CheckSquare, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, FolderKanban, FileText, CheckSquare, ArrowUp, ArrowDown, SearchX } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { db } from '@/lib/db'
 import { useUIStore } from '@/stores/uiStore'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface SearchResult {
   id: string
@@ -253,9 +254,13 @@ export function GlobalSearch() {
           )}
 
           {!isLoading && query.trim() && results.length === 0 && (
-            <div className="px-4 py-6 text-center text-xs text-text-muted">
-              未找到匹配结果
-            </div>
+            <EmptyState
+              icon={SearchX}
+              title="未找到匹配结果"
+              description={`未找到与 "${query.trim()}" 相关的项目、节点或任务`}
+              tone="slate"
+              compact
+            />
           )}
 
           {Array.from(groupedResults.entries()).map(([projectId, items]) => {

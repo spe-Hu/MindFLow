@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { LayoutGrid } from 'lucide-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const COLUMNS: { status: string; title: string }[] = [
   { status: 'todo', title: '待办' },
@@ -135,9 +137,13 @@ export function GlobalBoardPage() {
                   )
                 })}
                 {tasks.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <span className="text-xs text-text-muted">还没有任务</span>
-                  </div>
+                  <EmptyState
+                    icon={LayoutGrid}
+                    title="还没有任务"
+                    description="在思维导图中将节点转为任务，即可在看板中追踪"
+                    tone="slate"
+                    compact
+                  />
                 )}
               </div>
             </div>
