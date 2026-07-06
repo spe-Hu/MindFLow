@@ -11,7 +11,7 @@
 import { Page, expect } from '@playwright/test'
 import { enterLocalMode, createProject } from './journey-1'
 
-const BASE_URL = process.env.MF_BASE_URL || 'http://127.0.0.1:5179'
+const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 
 // 测试用项目/任务名 (时间戳后缀避免重名冲突)
 const ts = Date.now()

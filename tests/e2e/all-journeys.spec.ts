@@ -7,6 +7,7 @@ import { runJourney5 } from './journey-5'
 import { runJourney6 } from './journey-6'
 
 import { runJourney7 } from './journey-7'
+import { runJourney8 } from './journey-8'
 
 async function clearIndexedDB(page: Page) {
   await page.goto('/auth')

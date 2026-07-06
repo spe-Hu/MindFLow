@@ -4,7 +4,7 @@ console.log('Importing journey-1...')
 import { runJourney1 } from './journey-1'
 console.log('Imported journey-1')
 
-const BASE_URL = 'http://127.0.0.1:5179'
+const BASE_URL = 'http://localhost:5173'
 
 async function run() {
   console.log('Launching browser...')

@@ -327,7 +327,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         })
       }, 400)
     }
-  }, [mindmap, onDataChange, projectId, highlightNodeUid])
+  }, [mindmap, onDataChange, highlightNodeUid])
 
   useEffect(() => {
     initMindMap()

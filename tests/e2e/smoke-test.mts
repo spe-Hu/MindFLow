@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 
-const BASE_URL = 'http://127.0.0.1:5179'
+const BASE_URL = 'http://localhost:5173'
 
 async function run() {
   console.log('Launching browser...')

@@ -5,7 +5,7 @@
 import { Page, expect } from '@playwright/test'
 import { enterLocalMode, createProject } from './journey-1'
 
-const BASE_URL = process.env.MF_BASE_URL || 'http://127.0.0.1:5179'
+const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 const PROJECT_A = 'E2E-项目A-' + Date.now()
 const PROJECT_B = 'E2E-项目B-' + Date.now()
 const TASK_A_1 = 'A-需求分析'

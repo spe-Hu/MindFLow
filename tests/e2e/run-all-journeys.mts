@@ -6,7 +6,7 @@ import { runJourney4 } from './journey-4'
 import { runJourney5 } from './journey-5'
 import { runJourney6 } from './journey-6'
 
-const BASE_URL = process.env.MF_BASE_URL || 'http://127.0.0.1:5179'
+const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 
 async function run() {
   const browser = await chromium.launch({ headless: true })

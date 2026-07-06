@@ -16,6 +16,7 @@
 - `useProjectIdRef` 模式: simple-mind-map data_change 闭包不能捕获 projectId,必须用 ref 持有最新值
 - `scheduleTasksSync` 防抖锁 (80ms) + 单事务原子化,解决 data_change 并发竞态导致 task 记录丢失 (Bug 5)
 - 云同步 UX: 登录后 `SyncMigrationDialog` 检测本地数据并弹出迁移选择; Settings「云端同步」Tab 提供手动上传/恢复; AppLayout 全局监听 online/offline Toast 提示
+- AI 配置持久化: `settings` 表 key-value 存储 (`ai-enabled`/`ai-api-key`/`ai-base-url`/`ai-model`/`ai-prefer-api`)，生成时动态读取，替代硬编码环境变量
 
 ## 真实 Bug 修复历史 (5 个)
 1. **ViewHeader 缩放按钮运行时崩溃** (P0):函数签名未解构 onZoomIn/Out/Reset,JSX 引用未定义变量

@@ -23,19 +23,44 @@ export function OutlinePage() {
   const [hasChanges, setHasChanges] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Load mindmap data
+  // Load mindmap data (single source of truth — includes draft recovery)
   const loadMindmap = useCallback(async () => {
     if (!id) return
     const m = await db.mindmaps.where('project_id').equals(id).first()
     setMindmap(m ?? null)
 
+    let text: string
     if (m?.tree_data) {
-      const text = treeToOutline(m.tree_data as Record<string, unknown>)
+      text = treeToOutline(m.tree_data as Record<string, unknown>)
+    } else {
+      text = '中心主题\n'
+    }
+
+    // Check for local draft — only restore if user has unsaved edits AND the draft differs from DB
+    const draftKey = `mindflow-outline-draft-${id}`
+    const draft = localStorage.getItem(draftKey)
+    if (draft && draft.trim() !== '' && draft !== text) {
+      // Draft exists and differs from current DB state — show draft with toast hint
+      setOutlineText(draft)
+      setOriginalText(text) // compare against DB text, not draft
+      toast.info('已恢复未保存的草稿', {
+        description: '当前显示的是你上次编辑但未同步的内容',
+        action: {
+          label: '丢弃草稿',
+          onClick: () => {
+            setOutlineText(text)
+            setOriginalText(text)
+            localStorage.removeItem(draftKey)
+          },
+        },
+      })
+    } else {
       setOutlineText(text)
       setOriginalText(text)
-    } else {
-      setOutlineText('中心主题\n')
-      setOriginalText('中心主题\n')
+      if (draft && draft === text) {
+        // Draft identical to DB — safe to remove
+        localStorage.removeItem(draftKey)
+      }
     }
   }, [id])
 
@@ -70,17 +95,6 @@ export function OutlinePage() {
     const key = `mindflow-outline-draft-${id}`
     localStorage.setItem(key, outlineText)
   }, [id, outlineText, hasChanges])
-
-  // Restore draft on mount
-  useEffect(() => {
-    if (!id) return
-    const key = `mindflow-outline-draft-${id}`
-    const draft = localStorage.getItem(key)
-    if (draft) {
-      setOutlineText(draft)
-      // Don't clear immediately — let the user decide to keep or discard
-    }
-  }, [id])
 
   const handleSyncToMindmap = async () => {
     if (!id) return
@@ -260,7 +274,7 @@ export function OutlinePage() {
               <p className="text-[10px] text-text-muted">标记为已完成任务</p>
             </div>
             <div>
-              <p className="text-[11px] text-text-secondary font-mono">!高 / !中 / !低</p>
+              <p className="text-[11px] text-text-secondary font-mono">!高 / !中 / !低 / !紧急</p>
               <p className="text-[10px] text-text-muted">任务优先级</p>
             </div>
             <div>
@@ -277,6 +291,7 @@ export function OutlinePage() {
     用户调研
     竞品分析
   [ ] 视觉设计 !高 @2026-07-15
+  [ ] P0 缺陷修复 !紧急 @2026-07-06
   [x] 技术评审 !中`}
             </pre>
           </div>

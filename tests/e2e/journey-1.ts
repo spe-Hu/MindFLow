@@ -7,7 +7,7 @@
 
 import { Page, expect } from '@playwright/test'
 
-const BASE_URL = process.env.MF_BASE_URL || 'http://127.0.0.1:5179'
+const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 const PROJECT_NAME = 'E2E-项目A-' + Date.now()
 const NODE_ROOT = '中心主题'
 const NODE_CHILD_1 = '需求分析'
