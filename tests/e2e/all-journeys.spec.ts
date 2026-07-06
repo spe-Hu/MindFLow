@@ -74,4 +74,10 @@ test.describe('MindFlow E2E – All Journeys', () => {
     const results = await runJourney7(page)
     await assertResults(results)
   })
+
+  test('Journey 8 – AI 生成 + 节点详情 + 番茄钟 + Dashboard', async ({ page }) => {
+    await clearIndexedDB(page)
+    const results = await runJourney8(page)
+    await assertResults(results)
+  })
 })

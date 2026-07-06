@@ -27,8 +27,12 @@ export function ProjectMindMapPage() {
     if (id) {
       setActiveProject(id)
       loadProjectTasks(id)
-      db.mindmaps.where('project_id').equals(id).first().then((m) => {
-        setMindmap(m ?? null)
+      // 取同一 project 下 version 最新的 mindmap，避免竞态产生多条记录时加载到旧数据
+      db.mindmaps.where('project_id').equals(id).toArray().then((list) => {
+        const latest = list.length > 0
+          ? list.reduce((a, b) => (a.version > b.version ? a : b))
+          : null
+        setMindmap(latest)
       })
     }
   }, [id, setActiveProject, loadProjectTasks])

@@ -293,7 +293,7 @@ export async function runJourney6(page: Page) {
     await page.waitForTimeout(800)
 
     // 验证: 侧边栏不再显示该项目
-    const sidebarText = await page.locator('aside').innerText()
+    const sidebarText = await page.locator('aside').first().innerText()
     if (sidebarText.includes(PROJECT_ARCHIVE)) {
       throw new Error(`归档后侧边栏仍包含 ${PROJECT_ARCHIVE}`)
     }
@@ -309,19 +309,19 @@ export async function runJourney6(page: Page) {
     await page.waitForTimeout(400)
 
     // 验证: 已归档项目列表包含 PROJECT_ARCHIVE
-    const storageText = await page.locator('main').innerText()
+    const storageText = await page.locator('main').first().innerText()
     if (!storageText.includes(PROJECT_ARCHIVE)) {
       throw new Error(`归档项目列表中未找到 ${PROJECT_ARCHIVE}`)
     }
 
-    // 点击"恢复"按钮
-    const restoreBtn = page.locator('button:has-text("恢复")').first()
+    // 点击"恢复"按钮 (限定已归档项目区域内,排除"从云端恢复")
+    const restoreBtn = page.locator('button').filter({ hasText: /^恢复$/ }).first()
     if (await restoreBtn.count() === 0) throw new Error('未找到恢复按钮')
     await restoreBtn.click()
     await page.waitForTimeout(800)
 
     // 验证: 侧边栏重新显示
-    const sidebarText2 = await page.locator('aside').innerText()
+    const sidebarText2 = await page.locator('aside').first().innerText()
     if (!sidebarText2.includes(PROJECT_ARCHIVE)) {
       throw new Error(`恢复后侧边栏仍缺少 ${PROJECT_ARCHIVE}`)
     }

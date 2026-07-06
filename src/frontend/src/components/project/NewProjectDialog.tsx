@@ -114,7 +114,7 @@ export function NewProjectDialog() {
     setIsCreating(false)
     handleClose()
     navigate(`/project/${projectId}`)
-  }, [name, selectedColor, selectedTemplate, addProject, handleClose, navigate])
+  }, [name, selectedColor, selectedTemplate, addProject, handleClose, navigate, isAIGenerate])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

@@ -6,7 +6,7 @@
  * - 外部 LLM API（可选）：在 Settings 中配置 API Key，调用 OpenAI 兼容接口
  */
 
-import { generateId, createNode } from './templates'
+import { createNode } from './templates'
 import { db } from './db'
 
 export interface AIGenerateOptions {

@@ -250,7 +250,7 @@ export async function runJourney2(page: Page) {
     await archivedRow.locator('button:has-text("恢复")').click()
     await page.waitForTimeout(800)
     // 返回侧边栏验证 PROJECT_B 重新出现
-    const sidebarAfter = await page.locator('aside').innerText()
+    const sidebarAfter = await page.locator('aside').first().innerText()
     if (!sidebarAfter.includes(PROJECT_B)) {
       throw new Error(`恢复后侧边栏仍未显示 ${PROJECT_B}`)
     }

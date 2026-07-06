@@ -122,6 +122,13 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
   })
   const [exportOpen, setExportOpen] = useState(false)
   const exportMenuRef = useRef<HTMLDivElement>(null)
+  // 标记是否跳过 simple-mind-map 初始化后自动触发的首次 data_change
+  // 避免 mindmap prop 尚未到达时使用 DEFAULT_TREE_DATA 初始化,
+  // 导致 data_change 把默认数据写回 IDB,覆盖已有正确数据 (Bug 6 延伸)。
+  const initialChangeRef = useRef(true)
+  // 标记当前 instance 是否使用了 DEFAULT_TREE_DATA 初始化。
+  // 如果是，则所有 data_change 都不触发 onDataChange，直到下次重建时数据已到达。
+  const usingDefaultDataRef = useRef(false)
   // 用 ref 持有最新 layout,避免 layout 变化导致 initMindMap useCallback 重建,
   // 进而触发 [initMindMap, projectId] effect 与 [layout] effect 竞争 (Bug 6 竞态)。
   const layoutRef = useRef<LayoutKey>(layout)
@@ -177,10 +184,17 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       mindMapRef.current = null
     }
 
+    // 重置首次 data_change 跳过标志 (Bug 6 延伸)
+    initialChangeRef.current = true
+
     // Bug 6: 优先使用缓存的最新数据 (仅 layout effect 显式写入),
     // 否则回退到 prop 中的初始数据。用完后立即清空,避免污染下次重建。
+    const hasCached = latestTreeRef.current !== null
     const data = latestTreeRef.current ?? buildMindMapData(mindmap)
     latestTreeRef.current = null
+    // 标记当前 instance 是否使用了默认数据初始化
+    // (当 mindmap prop 尚未到达时 buildMindMapData 会返回 DEFAULT_TREE_DATA)
+    usingDefaultDataRef.current = !hasCached && !mindmap?.tree_data
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const instance = new MindMap({
@@ -213,10 +227,16 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     } as any)
 
     instance.on('data_change', (newData: Record<string, unknown>) => {
+      // 如果当前 instance 是用 DEFAULT_TREE_DATA 初始化的（mindmap prop 尚未到达），
+      // 跳过所有 data_change，避免把默认数据写回 IDB 覆盖正确数据 (Bug 6 延伸)。
+      if (usingDefaultDataRef.current) return
+      // 跳过 simple-mind-map 初始化后自动触发的首次 data_change
+      if (initialChangeRef.current) {
+        initialChangeRef.current = false
+        return
+      }
       // 注意:不要写 latestTreeRef,以免污染缓存。
       // latestTreeRef 只在 [layout] effect 中显式设置,用于一次性重建。
-      // 否则 simple-mind-map init 完成后会立刻触发一次 data_change,
-      // 把 DEFAULT_TREE_DATA 写入 ref,后续 mindmap prop 更新时反而读到过期数据。
       onDataChange?.(newData)
       // 改为防抖同步,避免快速 data_change 竞态导致 task 记录丢失 (Bug 5)
       scheduleTasksSync(projectIdRef.current, newData)
