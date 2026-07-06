@@ -1,6 +1,6 @@
 # MindFlow 项目长期记忆 (curated)
 
-> 截至 2026-07-06 第 17 次执行
+> 截至 2026-07-06 第 31 次执行（含 22 次自动化 + 9 次 E2E 回归复测）
 
 ## 项目状态
 - **PRD v1.1 已锁定**:`docs/PRD.md` + `docs/SPEC.md` + `docs/ARCHITECTURE.md` + `docs/UIUX.md`
@@ -26,9 +26,10 @@
    修复:模块级防抖 + 互斥锁 + 单事务原子化 + data_change 改同步触发
 
 ## 测试覆盖
-- 5 个 journey 文件 (`tests/e2e/journey-{1,2,3,4,5}.spec.ts`),共 59 个断言
-- 全部手工 Playwright MCP 跑,可封装为 `npm run test:e2e`
-- 核心 AC 100% 覆盖 + 4 项 Should Have (归档/搜索/日历/导入)
+- 7 个 journey 文件 (`tests/e2e/journey-{1,2,3,4,5,6,7}.spec.ts`),共 73 个断言
+- 使用 `npx playwright test tests/e2e/all-journeys.spec.ts --config tests/e2e/playwright.config.ts` 直接运行
+- 核心 AC 100% 覆盖 + 4 项 Should Have (归档/搜索/日历/导入) + 模板系统 (J7)
+- 连续 5+ 轮回归全部通过，E2E 稳定性已验收
 
 ## 踩坑记录 (重要)
 - **新建项目 dialog 输入**:`el.value = '...'` 不触发 React onChange,需用 `browser_type` 真实键盘事件,或 native setter + dispatchEvent
@@ -49,13 +50,16 @@
 ## 未完成功能 (Should/Could)
 - **Must Have**: 全部完成 ✅ (M1~M15，含暗色模式 M8)
 - **Should Have**: 全部完成 ✅ (S1 大纲 / S2 导入导出 / S3 云端同步 / S4 日历 / S5 搜索 / S6 最近编辑 / C6 归档)
-- **Could Have**:甘特图 / 协作分享 / AI 生成 / 番茄钟 ✅ / 附件&备注
-- **E2E 自动化集成**:封装为 Playwright Test Runner + 接入 CI
+- **Could Have**: AI 生成 ✅ / 番茄钟 ✅ / Dashboard ✅ / 通知提醒 ✅ / 节点详情 ✅ / 存储管理面板 ✅ / 项目模板 ✅ / Markdown 备注 ✅ / 文件附件 ❌ / 甘特图 ❌ / 协作分享 ❌
+- **E2E 自动化集成**: ✅ 已封装 `npx playwright test` + `all-journeys.spec.ts`（7 journey / 73 断言），CI 接入待后续
 
 ## 新增组件
 - `components/sync/SyncMigrationDialog.tsx` — 登录后本地→云端迁移弹窗
 - `components/pomodoro/PomodoroTimer.tsx` — 全局番茄钟浮动面板
 - `components/mindmap/NodeDetailSidebar.tsx` — 节点详情滑出面板（属性 + Markdown 文档）
+- `components/search/GlobalSearch.tsx` — 全局搜索面板（Cmd+K）
+- `components/layout/NotificationPanel.tsx` — 截止提醒通知下拉面板
+- `components/layout/ViewHeader.tsx` — 项目级页面头部（导图/看板/大纲 Tab 切换 + 缩放控件）
 
 ## 项目目录结构
 ```

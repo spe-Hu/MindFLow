@@ -1,5 +1,47 @@
 # MindFlow MVP 自动迭代记录
 
+## 2026-07-06 第 23 次执行
+
+### 重点: AI 外部 API 配置面板（补全 C3 闭环）
+
+**背景**: 主人反馈「外部 LLM 可选，但 Settings 里没有配置入口」。上一轮只实现了代码层支持，缺少 UI 配置能力。
+
+**改动**:
+1. `src/pages/SettingsPage.tsx`:
+   - NAV_SECTIONS 新增 `'ai'` 导航项（Sparkles 图标），位于「外观」和「存储」之间
+   - 新增 AI 配置 Section：启用开关、API Key 输入框（带 Eye/EyeOff 显隐切换）、Base URL、模型输入、"优先使用 AI 生成"开关
+   - 配置保存按钮调用 `saveAIConfig()` 持久化到 IndexedDB
+   - 组件 mount 时 `loadAIConfig()` 恢复配置
+2. `src/lib/aiMindMap.ts`:
+   - 移除硬编码的 `import.meta.env.VITE_OPENAI_API_KEY`，改为运行时从 IndexedDB settings 表读取
+   - 新增 `AIConfig` 接口 + `loadAIConfig()` / `saveAIConfig()` 工具函数
+   - `generateMindMapByAI()` 自动加载配置，根据 `enabled` + `apiKey` + `preferApi` 决定是否调用外部 API
+
+**验证**: Build 零 errors ✅, Lint 6 warnings 均为已有 ✅
+
+**备注**: 至此 C3 AI 生成完整闭环：UI 配置 → DB 持久化 → 生成时读取 → API/本地双引擎 fallback。
+
+---
+
+## 2026-07-06 第 22 次执行
+
+### 重点: PRD 文档同步（补充迭代记录表 + Could Have 标记）
+
+**背景**: 主人反馈每次迭代后 PRD 文档的进度标记未同步更新，问「你每次更新完之后为什么不把 PRD 文档也更新一下？」
+
+**改动**:
+1. `docs/PRD.md` §7 Could Have:
+   - C3 AI 生成 → 补充完整说明并标记 ✅
+   - C4 番茄钟 → 补充完整说明并标记 ✅
+   - C5 附件/备注 → 标注长文本备注 ✅ 已落地，图片/文件附件 ❌ 待后续
+2. `docs/PRD.md` §11 迭代记录表：追加 14 行，补齐之前遗漏的迭代（番茄钟/节点详情/云端同步/日历/搜索/导入/归档/大纲/E2E/Dashboard/快捷键/通知/最近编辑/存储管理），按时间正序排列
+
+**验证**: 无代码改动，纯文档更新
+
+**备注**: 以后每次迭代结束后同步更新 PRD §7 和 §11，确保文档与代码状态一致。
+
+---
+
 ## 2026-07-06 第 21 次执行
 
 ### 重点: AI 辅助生成思维导图 (Could Have C3)

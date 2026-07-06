@@ -23,7 +23,23 @@ export function ProjectBoardPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { setActiveProject } = useProjectStore()
-  const { projectTasks, loadProjectTasks, updateTask } = useTaskStore()
+  const { projectTasks, loadProjectTasks, updateTask, addTask } = useTaskStore()
+
+  const handleAddTask = async (status: string) => {
+    const title = window.prompt('输入新任务标题')
+    if (!title?.trim() || !id) return
+    await addTask({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      project_id: id,
+      node_uid: '',
+      title: title.trim(),
+      status: status as 'todo' | 'in_progress' | 'done' | 'cancelled',
+      priority: 'medium',
+      sort_order: 0,
+      created_at: new Date(),
+      updated_at: new Date(),
+    })
+  }
 
   useEffect(() => {
     if (id) {
@@ -102,7 +118,10 @@ export function ProjectBoardPage() {
                   </div>
                 )}
               </div>
-              <button className="w-full h-9 flex items-center justify-center gap-2 text-sm text-text-muted hover:text-text-secondary hover:bg-bg-elevated rounded-md mt-2 transition-colors duration-fast">
+              <button
+                onClick={() => handleAddTask(col.status)}
+                className="w-full h-9 flex items-center justify-center gap-2 text-sm text-text-muted hover:text-text-secondary hover:bg-bg-elevated rounded-md mt-2 transition-colors duration-fast"
+              >
                 <Plus className="h-4 w-4" />
                 添加任务
               </button>

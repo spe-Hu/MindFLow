@@ -26,6 +26,7 @@ const NAV_SECTIONS = [
   { value: 'account', label: '账户', icon: User },
   { value: 'cloud', label: '云端同步', icon: Cloud },
   { value: 'appearance', label: '外观', icon: Palette },
+  { value: 'ai', label: 'AI 助手', icon: Sparkles },
   { value: 'storage', label: '存储', icon: Database },
   { value: 'shortcuts', label: '快捷键', icon: Keyboard },
 ] as const
@@ -54,6 +55,16 @@ export function SettingsPage() {
   const [lastExportTime, setLastExportTime] = useState<string | null>(() => {
     return localStorage.getItem('mindflow-last-export-time')
   })
+  // AI 配置
+  const [aiConfig, setAIConfig] = useState<AIConfig>({
+    enabled: false,
+    apiKey: '',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    preferApi: false,
+  })
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [isAILoading, setIsAILoading] = useState(false)
 
   // 滚动到对应 section
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
@@ -116,6 +127,10 @@ export function SettingsPage() {
     setDisplayName(user?.display_name || '')
     setUsername(user?.username || '')
   }, [user])
+
+  useEffect(() => {
+    loadAIConfig().then(setAIConfig).catch(() => {})
+  }, [])
 
   const handleSaveProfile = async () => {
     if (!user) return
@@ -548,6 +563,117 @@ export function SettingsPage() {
                   <p className="text-xs text-text-muted mt-1">列表行高从 48px 降至 36px，节省屏幕空间</p>
                 </div>
                 <Switch checked={compactMode} onCheckedChange={toggleCompactMode} />
+              </div>
+            </div>
+          </section>
+
+          {/* ===== AI 助手 ===== */}
+          <section ref={(el) => { sectionRefs.current['ai'] = el }}>
+            <div className="mb-5">
+              <h3 className="text-lg font-semibold text-text-primary">AI 助手</h3>
+              <p className="text-sm text-text-muted mt-1">配置外部 LLM API，让 AI 生成更灵活的思维导图结构</p>
+            </div>
+            <div className="bg-bg-surface border border-border-default rounded-xl p-8 space-y-6">
+              {/* 启用开关 */}
+              <div className="flex items-center justify-between gap-6">
+                <div>
+                  <Label className="text-sm font-medium text-text-primary block">启用外部 AI</Label>
+                  <p className="text-xs text-text-muted mt-1">开启后，新建项目时可选 AI 生成模式（需配置 API Key）</p>
+                </div>
+                <Switch
+                  checked={aiConfig.enabled}
+                  onCheckedChange={(v) => setAIConfig((c) => ({ ...c, enabled: v }))}
+                />
+              </div>
+
+              {aiConfig.enabled && (
+                <>
+                  <Separator />
+                  {/* API Key */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-text-primary">API Key</Label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          type={showApiKey ? 'text' : 'password'}
+                          value={aiConfig.apiKey}
+                          onChange={(e) => setAIConfig((c) => ({ ...c, apiKey: e.target.value }))}
+                          placeholder="sk-..."
+                          className="h-11 bg-bg-primary border-border-default focus-visible:ring-primary-500 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey((v) => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                        >
+                          {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-text-muted">支持 OpenAI 及兼容接口（如 Azure、DeepSeek 等）</p>
+                  </div>
+
+                  {/* Base URL */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-text-primary">Base URL</Label>
+                    <Input
+                      value={aiConfig.baseUrl}
+                      onChange={(e) => setAIConfig((c) => ({ ...c, baseUrl: e.target.value }))}
+                      placeholder="https://api.openai.com/v1"
+                      className="h-11 bg-bg-primary border-border-default focus-visible:ring-primary-500"
+                    />
+                  </div>
+
+                  {/* 模型 */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-text-primary">模型</Label>
+                    <Input
+                      value={aiConfig.model}
+                      onChange={(e) => setAIConfig((c) => ({ ...c, model: e.target.value }))}
+                      placeholder="gpt-4o-mini"
+                      className="h-11 bg-bg-primary border-border-default focus-visible:ring-primary-500"
+                    />
+                  </div>
+
+                  {/* 优先使用 API */}
+                  <div className="flex items-center justify-between gap-6">
+                    <div>
+                      <Label className="text-sm font-medium text-text-primary block">优先使用 AI 生成</Label>
+                      <p className="text-xs text-text-muted mt-1">默认优先调用外部 API，失败时自动回退本地规则</p>
+                    </div>
+                    <Switch
+                      checked={aiConfig.preferApi}
+                      onCheckedChange={(v) => setAIConfig((c) => ({ ...c, preferApi: v }))}
+                    />
+                  </div>
+                </>
+              )}
+
+              <Separator />
+
+              <div className="flex items-center gap-3">
+                <Button
+                  size="sm"
+                  className="bg-primary-600 hover:bg-primary-700 text-white h-10 px-5"
+                  onClick={async () => {
+                    setIsAILoading(true)
+                    try {
+                      await saveAIConfig(aiConfig)
+                      toast.success('AI 配置已保存')
+                    } catch {
+                      toast.error('保存失败')
+                    } finally {
+                      setIsAILoading(false)
+                    }
+                  }}
+                  disabled={isAILoading}
+                >
+                  {isAILoading && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
+                  保存配置
+                </Button>
+                {!aiConfig.enabled && (
+                  <p className="text-xs text-text-muted">未启用外部 AI 时，AI 生成将使用本地规则引擎</p>
+                )}
               </div>
             </div>
           </section>

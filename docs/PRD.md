@@ -359,5 +359,20 @@ MindFlow 是一个融合思维导图与任务管理的网页版个人项目推�
 
 | 时间 | 功能 | 说明 | 对应文件 |
 |------|------|------|----------|
+| 2026-07-05 | 番茄钟 (Pomodoro) | 全局浮动计时面板：SVG 环形进度条、focus/shortBreak/longBreak 模式切换、浏览器通知、document.title 实时更新。任务卡片联动显示已完成番茄数并支持一键启动。node_detail 面板亦支持开始专注 | `src/stores/pomodoroStore.ts`, `src/components/pomodoro/PomodoroTimer.tsx` |
+| 2026-07-05 | 节点详情侧边栏 + Markdown 文档 | 导图浮动工具栏新增「查看详情」按钮，双击节点打开右侧 Sheet 面板。Tabs 分「属性」（任务开关/状态/优先级/截止日/番茄统计）和「文档」（Markdown 编辑/预览，支持标题/列表/粗体/斜体/代码/链接，零新依赖） | `src/components/mindmap/NodeDetailSidebar.tsx` |
+| 2026-07-05 | 云端同步 UX 闭环 | 登录后检测本地数据弹出 `SyncMigrationDialog` 三选项（迁移到云端 / 从云端恢复 / 继续使用本地）；Settings 新增「云端同步」Tab（网络状态/上次同步时间/手动上传恢复）；AppLayout 全局 online/offline Toast 提示 | `src/components/sync/SyncMigrationDialog.tsx` |
+| 2026-07-05 | 日历视图 | 月视图 `/calendar`，6×7 固定网格，跨项目任务按项目分色。月份导航、日期格子点击展开当日任务详情、每个格子最多 3 条任务条 + "+N" 溢出提示。点击任务跳转对应项目导图并定位节点 | `src/pages/CalendarPage.tsx` |
+| 2026-07-05 | 全局搜索 | Cmd/Ctrl+K 唤起搜索面板，覆盖项目名/导图节点/任务。结果按项目分组，上下箭头选择 + Enter 跳转，点击任务/节点自动切换到对应项目导图并高亮 | `src/components/search/GlobalSearch.tsx` |
+| 2026-07-05 | 数据导入功能 | Settings「存储管理」新增「导入数据」按钮，支持选择 JSON 文件恢复。格式验证（version + projects 数组）、版本兼容（仅 v1.x）、合并覆盖策略确认、Date ISO 自动转回 Date、单事务原子化写入 | `src/pages/SettingsPage.tsx` |
+| 2026-07-05 | 项目归档 | Sidebar 右键菜单归档，Settings「已归档项目」列表支持恢复和彻底删除。解决 20 项目上限刚需 | `src/pages/SettingsPage.tsx`, `src/components/layout/Sidebar.tsx` |
+| 2026-07-05 | 大纲/导图双向编辑 | 路由 `/project/:id/outline`，文本编辑器支持缩进表示层级（2 空格=1 级）。任务语法：`[ ]` 待办、`[x]` 已完成、`!高/中/低` 优先级、`@YYYY-MM-DD` 截止日。双向同步 + 未保存警告 + localStorage 草稿 | `src/pages/OutlinePage.tsx`, `src/lib/outline.ts` |
+| 2026-07-05 | E2E 测试覆盖 | 5 个 journey 文件共 59 个断言，覆盖核心用户旅程：单项目全链路 / 多项目 + 全局任务 / 导入导出 / 搜索 / 日历。Playwright MCP 手工跑通 | `tests/e2e/journey-{1,2,3,4,5}.spec.ts` |
+| 2026-07-06 | Dashboard 统计仪表盘 | 首屏全局概览：5 张统计卡片（总任务/已完成/待办/进行中/已逾期，可点击跳转）、项目进度列表（完成率进度条+分色）、本周截止（近 7 天按紧迫感排序）、高优任务速览面板 | `src/pages/DashboardPage.tsx` |
+| 2026-07-06 | 全局快捷键 + 导图导出 | AppLayout 全局绑定 Cmd/Ctrl+Shift+N 新建项目（自动排除输入框场景）。MindMapCanvas 注册 Export 插件，工具栏新增「导出」下拉（PNG/SVG/Markdown），导出过程 Toast 反馈 | `src/components/layout/AppLayout.tsx`, `src/components/mindmap/MindMapCanvas.tsx` |
+| 2026-07-06 | 截止提醒通知面板 + 逾期视觉标识 | Header Bell 替换为真实通知面板，从 tasks 实时生成 overdue/due_today/due_tomorrow 分组通知，点击跳转对应节点。TaskCard 逾期任务左侧红色竖条 + 日期区域高亮标签（逾期红/今天橙/明天蓝）。Dashboard StatCard 全部支持 onClick 跳转 | `src/components/layout/NotificationPanel.tsx`, `src/stores/notificationStore.ts`, `src/components/task/TaskCard.tsx` |
+| 2026-07-06 | 最近编辑列表 | Sidebar 展开态新增「最近编辑」区域，按 `last_opened_at` 倒序显示最近 4 个非归档项目，点击直接跳转。IndexedDB schema 升级到 v2 添加索引 | `src/components/layout/Sidebar.tsx`, `src/stores/projectStore.ts` |
+| 2026-07-06 | 存储管理面板升级 | Settings「存储」Tab 全面重构：4 张数据概况统计卡片（项目/节点/任务/大小）、存储用量进度条变色预警（>80% 琥珀色 / >95% 红色）、备份提醒（基于 localStorage 导出时间，>30 天未导出提示）、数据健康检查（一键扫描 4 类问题 + 自动修复孤立任务） | `src/pages/SettingsPage.tsx`, `src/lib/db.ts` |
 | 2026-07-06 | 项目模板系统 | 新建项目时可选 5 个预置模板（空白/产品开发/论文写作/活动策划/周计划），降低新用户上手门槛。模板预置思维导图结构 + 任务节点 + 截止日期 + 优先级 | `src/lib/templates.ts`, `src/components/project/NewProjectDialog.tsx` |
 | 2026-07-06 | AI 辅助生成思维导图 | 新建项目对话框新增"AI 生成"卡片（第 6 格），用户输入主题后本地语义引擎自动匹配最接近的模板骨架并个性化根节点文本；未匹配时回退到通用 OKR 骨架。可选接入 OpenAI API（VITE_OPENAI_API_KEY）。生成后自动同步任务到 IndexedDB | `src/lib/aiMindMap.ts`, `src/components/project/NewProjectDialog.tsx` |
+| 2026-07-06 | AI 外部 API 配置面板 | Settings 新增「AI 助手」Tab：启用开关、API Key（带显隐切换）、Base URL、模型、优先使用 AI 开关。配置持久化到 IndexedDB settings 表。aiMindMap 动态读取配置替代硬编码环境变量 | `src/pages/SettingsPage.tsx`, `src/lib/aiMindMap.ts` |
