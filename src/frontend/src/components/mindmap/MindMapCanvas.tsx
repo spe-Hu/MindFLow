@@ -1,15 +1,18 @@
 import { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react'
 import MindMap from 'simple-mind-map'
 import Export from 'simple-mind-map/src/plugins/Export.js'
+import ExportPDF from 'simple-mind-map/src/plugins/ExportPDF.js'
 import type { LocalMindmap } from '@/lib/db'
 import { syncTasksFromTree } from '@/lib/db'
 import { cn } from '@/lib/utils'
-import { CheckSquare, Square, CalendarDays, LayoutTemplate, Network, GitBranch, X, PanelRight, Download, Image, FileText, FileCode } from 'lucide-react'
+import { CheckSquare, Square, CalendarDays, LayoutTemplate, Network, GitBranch, X, PanelRight, Download, Image, FileText, FileCode, FileInput } from 'lucide-react'
 import { NodeDetailSidebar } from './NodeDetailSidebar'
 import { toast } from 'sonner'
 
 // eslint-disable-next-line react-hooks/rules-of-hooks
 MindMap.usePlugin(Export)
+// eslint-disable-next-line react-hooks/rules-of-hooks
+MindMap.usePlugin(ExportPDF)
 
 export interface MindMapCanvasRef {
   zoomIn: () => void
@@ -454,7 +457,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     setActiveNodeData(prev => (prev ? { ...prev, ...updates } : prev))
   }, [])
 
-  const handleExport = useCallback(async (type: 'png' | 'svg' | 'md') => {
+  const handleExport = useCallback(async (type: 'png' | 'svg' | 'md' | 'pdf') => {
     const instance = mindMapRef.current
     if (!instance) return
     try {
@@ -465,7 +468,10 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         toast.error('导出插件未就绪')
         return
       }
-      if (type === 'png') {
+      if (type === 'pdf') {
+        // PDF 需要通过 Export 插件的 export 方法触发下载
+        await (instance as any).export('pdf', true, 'mindflow')
+      } else if (type === 'png') {
         await doExport.png('mindflow', true)
       } else if (type === 'svg') {
         await doExport.svg('mindflow', true)
@@ -650,6 +656,13 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
               >
                 <FileText className="h-3.5 w-3.5" />
                 导出 Markdown
+              </button>
+              <button
+                onClick={() => handleExport('pdf')}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-elevated transition-colors"
+              >
+                <FileInput className="h-3.5 w-3.5" />
+                导出 PDF
               </button>
             </div>
           )}
