@@ -22,14 +22,33 @@ async function clickNodeByText(page: Page, text: string) {
 }
 
 async function addChildAndTask(page: Page, text: string, alsoMarkAsTask: boolean) {
-  // 先 focus 到思维导图画布 (headless 下必须)
-  await page.locator('g.smm-node').first().click({ force: true })
-  await page.waitForTimeout(300)
-  await page.keyboard.press('Tab')
-  await page.waitForTimeout(400)
-  await page.keyboard.type(text, { delay: 30 })
-  await page.keyboard.press('Enter')
-  await page.waitForTimeout(500)
+  // headless 下 simple-mind-map Tab 创建节点不稳定，加 retry 机制
+  let created = false
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const rootNodeEl = page.locator('g.smm-node').first()
+    await rootNodeEl.scrollIntoViewIfNeeded().catch(() => {})
+    await rootNodeEl.click({ force: true })
+    await page.waitForTimeout(300)
+    await page.keyboard.press('Tab')
+    await page.waitForTimeout(500)
+    const editWrap = page.locator('div.smm-node-edit-wrap')
+    if (await editWrap.count() === 0) {
+      await page.waitForTimeout(200)
+      continue
+    }
+    await page.keyboard.type(text, { delay: 30 })
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(600)
+    // 验证节点是否出现
+    const found = await page.locator('text=' + text).first().isVisible().catch(() => false)
+    if (found) {
+      created = true
+      break
+    }
+  }
+  if (!created) {
+    throw new Error(`创建节点 "${text}" 失败，3 次 retry 后仍未出现`)
+  }
   if (alsoMarkAsTask) {
     // 新建节点通常会自动选中 (simple-mind-map 行为)
     // 用浮动工具栏标记

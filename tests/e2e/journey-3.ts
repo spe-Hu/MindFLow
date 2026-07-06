@@ -22,11 +22,16 @@ const NODE_X_PLAIN = 'X-会议纪要'
 
 // helper: 添加子节点 (自动选中,可选标记为任务)
 async function addChildAndMaybeTask(page: Page, text: string, alsoMarkAsTask: boolean) {
+  // 等待 simple-mind-map 节点渲染完成（createProject 后导航完成但画布可能还没挂载）
+  await page.waitForSelector('g.smm-node', { state: 'visible', timeout: 10000 })
+  await page.waitForTimeout(400)
   // headless 下 Tab 不总是触发 edit-wrap,加 retry 机制
   let editWrap = page.locator('div.smm-node-edit-wrap')
   let retries = 0
   while (retries < 3) {
-    await page.locator('g.smm-node').first().click({ force: true })
+    const rootNodeEl = page.locator('g.smm-node').first()
+    await rootNodeEl.scrollIntoViewIfNeeded().catch(() => {})
+    await rootNodeEl.click({ force: true })
     await page.waitForTimeout(300)
     await page.keyboard.press('Tab')
     await page.waitForTimeout(500)

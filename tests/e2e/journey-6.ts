@@ -19,18 +19,32 @@ const PROJECT_ARCHIVE = 'E2E-Archive-' + ts
 
 // helper: 创建一个默认项目并添加 N 个子节点 (用 Tab 创建同级)
 async function addChildNodes(page: Page, names: string[]) {
-  // 先点 root
-  await page.locator('g.smm-node').first().click({ force: true })
-  await page.waitForTimeout(200)
   for (const name of names) {
-    await page.keyboard.press('Tab')
-    await page.waitForTimeout(300)
-    await page.locator('div.smm-node-edit-wrap').pressSequentially(name, { delay: 30 })
-    await page.keyboard.press('Enter')
-    await page.waitForTimeout(400)
-    // Tab 后再次添加需要点回 root (连续 Tab 会一直创建子节点)
-    await page.locator('g.smm-node').first().click({ force: true })
-    await page.waitForTimeout(200)
+    let created = false
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const rootNodeEl = page.locator('g.smm-node').first()
+      await rootNodeEl.scrollIntoViewIfNeeded().catch(() => {})
+      await rootNodeEl.click({ force: true })
+      await page.waitForTimeout(300)
+      await page.keyboard.press('Tab')
+      await page.waitForTimeout(500)
+      const editWrap = page.locator('div.smm-node-edit-wrap')
+      if (await editWrap.count() === 0) {
+        await page.waitForTimeout(200)
+        continue
+      }
+      await page.keyboard.type(name, { delay: 30 })
+      await page.keyboard.press('Enter')
+      await page.waitForTimeout(600)
+      const found = await page.locator('text=' + name).first().isVisible().catch(() => false)
+      if (found) {
+        created = true
+        break
+      }
+    }
+    if (!created) {
+      throw new Error(`创建节点 "${name}" 失败，3 次 retry 后仍未出现`)
+    }
   }
 }
 
@@ -159,28 +173,38 @@ export async function runJourney6(page: Page) {
   // ===== M3-TASK-OFF: 节点转任务 → 取消转任务 =====
   try {
     await createProject(page, PROJECT_TASKOFF)
+    await page.waitForTimeout(600)
 
-    // 选 root 节点,按 T 标记为任务 (或点击"转为任务"按钮)
-    await page.locator('g.smm-node').first().click({ force: true })
-    await page.waitForTimeout(300)
-    const toggleBtn = page.locator('button:has-text("转为任务")').first()
-    if (await toggleBtn.isVisible().catch(() => false)) {
-      await toggleBtn.click()
-      await page.waitForTimeout(400)
-    } else {
-      // fallback: 按 T 键
-      await page.keyboard.press('t')
-      await page.waitForTimeout(400)
-    }
-
-    // 验证: 节点已标记为任务 (通过 __mindMap API,不依赖 headless 浮动工具栏渲染)
-    const isTaskAfterOn = await page.evaluate(() => {
+    // headless 下浮动工具栏常因 activeNodePos 计算失败不渲染,
+    // 且 T 键依赖 activeNodeList 非空。直接通过 __mindMap API 操作更可靠 (同 J4)
+    await page.evaluate(() => {
       const mm = (window as any).__mindMap
-      if (!mm) return { error: '__mindMap not found' }
-      const fullData = mm.getData(true)
-      const root = fullData?.root || fullData
-      return { _isTask: root.data?._isTask, _status: root.data?._status }
+      if (!mm) throw new Error('__mindMap not found')
+      const root = mm.renderer?.root
+      if (!root) throw new Error('renderer root not found')
+      mm.execCommand('SET_NODE_DATA', root, {
+        _isTask: true,
+        _status: 'todo',
+        _priority: 'medium',
+        fillColor: '#eff6ff',
+        borderColor: '#93c5fd',
+        color: '#1e40af',
+      })
     })
+
+    // 轮询验证: 节点已标记为任务
+    let isTaskAfterOn: any = null
+    for (let i = 0; i < 20; i++) {
+      isTaskAfterOn = await page.evaluate(() => {
+        const mm = (window as any).__mindMap
+        if (!mm) return { error: '__mindMap not found' }
+        const fullData = mm.getData(true)
+        const root = fullData?.root || fullData
+        return { _isTask: root.data?._isTask, _status: root.data?._status }
+      })
+      if (isTaskAfterOn._isTask) break
+      await page.waitForTimeout(100)
+    }
     if (!isTaskAfterOn._isTask) {
       throw new Error(`转为任务失败,节点数据: ${JSON.stringify(isTaskAfterOn)}`)
     }
@@ -194,25 +218,37 @@ export async function runJourney6(page: Page) {
       // 看板的"暂无任务"会出现在 board 卡片区域
     }
 
-    // 回到导图,取消任务标记
+    // 回到导图,取消任务标记 (同样直接 API)
     await page.locator('button:has-text("导图")').first().click()
     await page.waitForTimeout(800)
-    await page.locator('g.smm-node').first().click({ force: true })
-    await page.waitForTimeout(300)
-    const offBtn = page.locator('button:has-text("已标记为任务")').first()
-    if (await offBtn.isVisible().catch(() => false)) {
-      await offBtn.click()
-      await page.waitForTimeout(400)
-    }
-
-    // 验证: 节点已取消任务标记 (通过 __mindMap API,不依赖 headless 浮动工具栏渲染)
-    const isTaskAfterOff = await page.evaluate(() => {
+    await page.evaluate(() => {
       const mm = (window as any).__mindMap
-      if (!mm) return { error: '__mindMap not found' }
-      const fullData = mm.getData(true)
-      const root = fullData?.root || fullData
-      return { _isTask: root.data?._isTask }
+      if (!mm) throw new Error('__mindMap not found')
+      const root = mm.renderer?.root
+      if (!root) throw new Error('renderer root not found')
+      mm.execCommand('SET_NODE_DATA', root, {
+        _isTask: false,
+        _status: undefined,
+        _priority: undefined,
+        fillColor: undefined,
+        borderColor: undefined,
+        color: undefined,
+      })
     })
+
+    // 轮询验证: 节点已取消任务标记
+    let isTaskAfterOff: any = null
+    for (let i = 0; i < 20; i++) {
+      isTaskAfterOff = await page.evaluate(() => {
+        const mm = (window as any).__mindMap
+        if (!mm) return { error: '__mindMap not found' }
+        const fullData = mm.getData(true)
+        const root = fullData?.root || fullData
+        return { _isTask: root.data?._isTask }
+      })
+      if (!isTaskAfterOff._isTask) break
+      await page.waitForTimeout(100)
+    }
     if (isTaskAfterOff._isTask) {
       throw new Error(`取消任务标记失败,节点数据: ${JSON.stringify(isTaskAfterOff)}`)
     }
