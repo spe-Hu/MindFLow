@@ -29,8 +29,10 @@ export function ProjectMindMapPage() {
       setLoading(true)
       setActiveProject(id)
       loadProjectTasks(id)
-      // 取同一 project 下 version 最新的 mindmap，避免竞态产生多条记录时加载到旧数据
-      db.mindmaps.where('project_id').equals(id).toArray().then((list) => {
+      // 取同一 project 下 version 最新的 mindmap，避免竞态产生多条记录时加载到旧数据。
+      // 改用 toArray + JS filter：Dexie where('project_id') 在 db.delete() 重建后偶发失效。
+      db.mindmaps.toArray().then((all) => {
+        const list = all.filter((m) => m.project_id === id)
         const latest = list.length > 0
           ? list.reduce((a, b) => (a.version > b.version ? a : b))
           : null

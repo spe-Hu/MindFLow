@@ -57,12 +57,41 @@ export async function runJourney8(page: Page) {
     await createBtn.click()
 
     // 等待导航 + MindMapCanvas 挂载 + simple-mind-map 渲染
-    // ProjectMindMapPage 现在有 loading 状态，固定等待比 waitForSelector 更稳定
     await page.waitForURL(/\/project\//, { timeout: 15000 })
-    await page.waitForTimeout(2500)
+    await page.waitForTimeout(6000)
+
+    // 诊断：dump SVG DOM 结构 + __mindMap instance 状态
+    const diag = await page.evaluate(() => {
+      const svg = document.querySelector('svg')
+      const allTags = svg ? Array.from(new Set(Array.from(svg.querySelectorAll('*')).map((el) => el.tagName))) : []
+      const mm = (window as any).__mindMap
+      let mmData: unknown = null
+      try {
+        mmData = mm ? mm.getData(true) : 'no-instance'
+      } catch { mmData = 'getData-error' }
+      return {
+        hasSvg: !!svg,
+        svgInnerHTML: svg ? svg.innerHTML.slice(0, 800) : '(no svg)',
+        allTags,
+        mindMapExists: !!mm,
+        mindMapRootText: (mmData as any)?.root?.data?.text || '(no root)',
+      }
+    })
+    // eslint-disable-next-line no-console
+    console.log('[J8 SVG diag]', JSON.stringify(diag))
+
+    // 通过 DOM evaluate 取 SVG 内文本
+    const nodeTexts = await page.evaluate(() => {
+      const texts: string[] = []
+      document.querySelectorAll('g.smm-node').forEach((g) => {
+        const t = g.querySelector('text')
+        if (t) texts.push((t as SVGTextElement).textContent || '')
+      })
+      return texts
+    })
+    const allTexts = nodeTexts.length > 0 ? nodeTexts : await page.locator('g.smm-node text').allTextContents()
 
     // 验证根节点文本是 AI 接收的主题
-    const allTexts = await page.locator('g.smm-node text').allTextContents()
     expect(allTexts).toContain('前端组件库开发')
 
     // 验证 product-dev 模板结构（4 个一级分支）

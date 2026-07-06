@@ -75,14 +75,32 @@ test.describe('MindFlow E2E – All Journeys', () => {
   })
 
   test('Journey 7 – 项目模板系统 (产品开发/周计划/空白模板)', async ({ page }) => {
+    const logs: string[] = []
+    page.on('console', (msg) => {
+      logs.push(`[browser ${msg.type()}] ${msg.text()}`)
+    })
     await clearIndexedDB(page)
     const results = await runJourney7(page)
+    if (logs.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log('\n--- J7 Browser console logs ---\n' + logs.filter(l => l.includes('[MindMapCanvas]') || l.includes('[ProjectMindMapPage]')).join('\n') + '\n---\n')
+    }
     await assertResults(results)
   })
 
   test('Journey 8 – AI 生成 + 节点详情 + 番茄钟 + Dashboard', async ({ page }) => {
+    const logs: string[] = []
+    page.on('console', (msg) => {
+      const text = msg.text()
+      // Capture all logs/errors, not just our custom ones
+      logs.push(`[browser ${msg.type()}] ${text}`)
+    })
     await clearIndexedDB(page)
     const results = await runJourney8(page)
+    if (logs.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log('\n--- Browser console logs ---\n' + logs.join('\n') + '\n---\n')
+    }
     await assertResults(results)
   })
 })

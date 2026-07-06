@@ -1,145 +1,243 @@
 -- ============================================
 -- MindFlow v1.2 — 修复 uuid 类型与本地 string ID 不兼容
 -- ============================================
--- 问题：本地项目/导图/任务 ID 使用自定义 string（如 1783319987163-qivf9bl），
---       但 001_initial_schema 将业务表 id 设为 uuid 类型，导致 upsert 时报
---       "invalid input syntax for type uuid"。
--- 方案：将所有业务表的 id 列及相关外键从 uuid 改为 text。
---       user_id 保持 uuid（外键指向 auth.users.id）。
--- 执行方式：在 Supabase SQL Editor 中逐段执行（或整体执行）
+-- 策略：新表替换旧表（避免 ALTER TYPE 与 policy/index/trigger 冲突）
+-- 步骤：
+--   1. 创建新表（text id）
+--   2. 迁移旧表数据（如有）
+--   3. 删除旧表 CASCADE（连带清除 policy/trigger/index/FK/RLS）
+--   4. 重命名新表
+--   5. 重建 index / trigger / policy / RLS
 -- ============================================
 
 -- --------------------------------------------
--- 1. 删除所有外键约束（以便安全修改列类型）
+-- 0. 确保扩展已启用
 -- --------------------------------------------
-DO $$
-DECLARE
-    fk RECORD;
-BEGIN
-    FOR fk IN
-        SELECT tc.constraint_name, tc.table_name
-        FROM information_schema.table_constraints tc
-        WHERE tc.constraint_type = 'FOREIGN KEY'
-          AND tc.table_schema = 'public'
-          AND tc.table_name IN (
-              'mindmaps', 'tasks', 'mindmap_nodes',
-              'tags', 'project_tags', 'task_tags'
-          )
-        ORDER BY tc.table_name, tc.constraint_name
-    LOOP
-        EXECUTE format('ALTER TABLE %I DROP CONSTRAINT IF EXISTS %I CASCADE', fk.table_name, fk.constraint_name);
-    END LOOP;
-END $$;
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- --------------------------------------------
--- 2. 修改 projects 表
--- --------------------------------------------
-ALTER TABLE projects ALTER COLUMN id TYPE text USING id::text;
-
--- --------------------------------------------
--- 3. 修改 mindmaps 表
--- --------------------------------------------
-ALTER TABLE mindmaps ALTER COLUMN id TYPE text USING id::text;
-ALTER TABLE mindmaps ALTER COLUMN project_id TYPE text USING project_id::text;
--- user_id 保持 uuid
-
--- --------------------------------------------
--- 4. 修改 tasks 表
--- --------------------------------------------
-ALTER TABLE tasks ALTER COLUMN id TYPE text USING id::text;
-ALTER TABLE tasks ALTER COLUMN project_id TYPE text USING project_id::text;
-ALTER TABLE tasks ALTER COLUMN mindmap_id TYPE text USING mindmap_id::text;
--- user_id 保持 uuid
-
--- --------------------------------------------
--- 5. 修改 mindmap_nodes 表
--- --------------------------------------------
-ALTER TABLE mindmap_nodes ALTER COLUMN id TYPE text USING id::text;
-ALTER TABLE mindmap_nodes ALTER COLUMN project_id TYPE text USING project_id::text;
-ALTER TABLE mindmap_nodes ALTER COLUMN mindmap_id TYPE text USING mindmap_id::text;
-ALTER TABLE mindmap_nodes ALTER COLUMN task_id TYPE text USING task_id::text;
-
--- --------------------------------------------
--- 6. 修改 tags 表
--- --------------------------------------------
-ALTER TABLE tags ALTER COLUMN id TYPE text USING id::text;
--- user_id 保持 uuid
-
--- --------------------------------------------
--- 7. 修改 project_tags 表
--- --------------------------------------------
-ALTER TABLE project_tags ALTER COLUMN id TYPE text USING id::text;
-ALTER TABLE project_tags ALTER COLUMN project_id TYPE text USING project_id::text;
-ALTER TABLE project_tags ALTER COLUMN tag_id TYPE text USING tag_id::text;
-
--- --------------------------------------------
--- 8. 修改 task_tags 表
--- --------------------------------------------
-ALTER TABLE task_tags ALTER COLUMN id TYPE text USING id::text;
-ALTER TABLE task_tags ALTER COLUMN task_id TYPE text USING task_id::text;
-ALTER TABLE task_tags ALTER COLUMN tag_id TYPE text USING tag_id::text;
-
--- --------------------------------------------
--- 9. 重新添加外键约束
+-- 1. 创建新表
 -- --------------------------------------------
 
--- mindmaps
-ALTER TABLE mindmaps
-    ADD CONSTRAINT mindmaps_project_id_fkey
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+CREATE TABLE projects_new (
+    id text PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name varchar(200) NOT NULL,
+    color varchar(7) DEFAULT '#4F46E5',
+    icon varchar(50) DEFAULT 'folder',
+    description text,
+    sort_order int DEFAULT 0,
+    is_archived boolean DEFAULT false,
+    version int DEFAULT 1,
+    last_opened_at timestamptz DEFAULT now(),
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
 
-ALTER TABLE mindmaps
-    ADD CONSTRAINT mindmaps_user_id_fkey
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+CREATE TABLE mindmaps_new (
+    id text PRIMARY KEY,
+    project_id text NOT NULL UNIQUE REFERENCES projects_new(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title varchar(200) NOT NULL,
+    root_node_id varchar(64) NOT NULL,
+    layout varchar(30) DEFAULT 'logicalStructure',
+    theme jsonb DEFAULT '{}',
+    tree_data jsonb NOT NULL,
+    view_state jsonb DEFAULT '{}',
+    version int DEFAULT 1,
+    last_sync_at timestamptz DEFAULT now(),
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
 
--- tasks
-ALTER TABLE tasks
-    ADD CONSTRAINT tasks_project_id_fkey
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+CREATE TABLE tasks_new (
+    id text PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES projects_new(id) ON DELETE CASCADE,
+    mindmap_id text NOT NULL REFERENCES mindmaps_new(id) ON DELETE CASCADE,
+    node_uid varchar(64) NOT NULL,
+    title text NOT NULL,
+    status varchar(20) DEFAULT 'todo',
+    priority varchar(10) DEFAULT 'medium',
+    due_date date,
+    completed_at timestamptz,
+    sort_order int DEFAULT 0,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
 
-ALTER TABLE tasks
-    ADD CONSTRAINT tasks_mindmap_id_fkey
-    FOREIGN KEY (mindmap_id) REFERENCES mindmaps(id) ON DELETE CASCADE;
+CREATE TABLE mindmap_nodes_new (
+    id text PRIMARY KEY,
+    project_id text NOT NULL REFERENCES projects_new(id) ON DELETE CASCADE,
+    mindmap_id text NOT NULL REFERENCES mindmaps_new(id) ON DELETE CASCADE,
+    uid varchar(64) NOT NULL,
+    parent_uid varchar(64),
+    text text NOT NULL,
+    data jsonb NOT NULL DEFAULT '{}',
+    depth int NOT NULL,
+    sort_order int NOT NULL DEFAULT 0,
+    is_task boolean DEFAULT false,
+    task_id text REFERENCES tasks_new(id) ON DELETE SET NULL,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
 
-ALTER TABLE tasks
-    ADD CONSTRAINT tasks_user_id_fkey
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+CREATE TABLE tags_new (
+    id text PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name varchar(50) NOT NULL,
+    color varchar(7) DEFAULT '#3B82F6',
+    created_at timestamptz DEFAULT now()
+);
 
--- mindmap_nodes
-ALTER TABLE mindmap_nodes
-    ADD CONSTRAINT mindmap_nodes_project_id_fkey
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+CREATE TABLE project_tags_new (
+    id text PRIMARY KEY,
+    project_id text NOT NULL REFERENCES projects_new(id) ON DELETE CASCADE,
+    tag_id text NOT NULL REFERENCES tags_new(id) ON DELETE CASCADE,
+    created_at timestamptz DEFAULT now()
+);
 
-ALTER TABLE mindmap_nodes
-    ADD CONSTRAINT mindmap_nodes_mindmap_id_fkey
-    FOREIGN KEY (mindmap_id) REFERENCES mindmaps(id) ON DELETE CASCADE;
+CREATE TABLE task_tags_new (
+    id text PRIMARY KEY,
+    task_id text NOT NULL REFERENCES tasks_new(id) ON DELETE CASCADE,
+    tag_id text NOT NULL REFERENCES tags_new(id) ON DELETE CASCADE,
+    created_at timestamptz DEFAULT now()
+);
 
-ALTER TABLE mindmap_nodes
-    ADD CONSTRAINT mindmap_nodes_task_id_fkey
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL;
+-- --------------------------------------------
+-- 2. 迁移旧表数据（uuid → text 自动兼容）
+-- --------------------------------------------
+INSERT INTO projects_new SELECT * FROM projects;
+INSERT INTO mindmaps_new SELECT * FROM mindmaps;
+INSERT INTO tasks_new SELECT * FROM tasks;
+INSERT INTO mindmap_nodes_new SELECT * FROM mindmap_nodes;
+INSERT INTO tags_new SELECT * FROM tags;
+INSERT INTO project_tags_new SELECT * FROM project_tags;
+INSERT INTO task_tags_new SELECT * FROM task_tags;
 
--- tags
-ALTER TABLE tags
-    ADD CONSTRAINT tags_user_id_fkey
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+-- --------------------------------------------
+-- 3. 删除旧表（CASCADE 连带清除 policy/trigger/index/FK/RLS）
+-- --------------------------------------------
+DROP TABLE IF EXISTS task_tags CASCADE;
+DROP TABLE IF EXISTS project_tags CASCADE;
+DROP TABLE IF EXISTS tags CASCADE;
+DROP TABLE IF EXISTS mindmap_nodes CASCADE;
+DROP TABLE IF EXISTS tasks CASCADE;
+DROP TABLE IF EXISTS mindmaps CASCADE;
+DROP TABLE IF EXISTS projects CASCADE;
 
--- project_tags
-ALTER TABLE project_tags
-    ADD CONSTRAINT project_tags_project_id_fkey
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+-- --------------------------------------------
+-- 4. 重命名新表为正式名称
+-- --------------------------------------------
+ALTER TABLE projects_new RENAME TO projects;
+ALTER TABLE mindmaps_new RENAME TO mindmaps;
+ALTER TABLE tasks_new RENAME TO tasks;
+ALTER TABLE mindmap_nodes_new RENAME TO mindmap_nodes;
+ALTER TABLE tags_new RENAME TO tags;
+ALTER TABLE project_tags_new RENAME TO project_tags;
+ALTER TABLE task_tags_new RENAME TO task_tags;
 
-ALTER TABLE project_tags
-    ADD CONSTRAINT project_tags_tag_id_fkey
-    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE;
+-- --------------------------------------------
+-- 5. 重建索引
+-- --------------------------------------------
+CREATE INDEX idx_projects_user_sort ON projects(user_id, sort_order);
+CREATE INDEX idx_projects_user_last_opened ON projects(user_id, last_opened_at);
+CREATE INDEX idx_projects_is_archived ON projects(is_archived);
 
--- task_tags
-ALTER TABLE task_tags
-    ADD CONSTRAINT task_tags_task_id_fkey
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE;
+CREATE INDEX idx_mindmaps_project_id ON mindmaps(project_id);
+CREATE INDEX idx_mindmaps_user_id ON mindmaps(user_id);
 
-ALTER TABLE task_tags
-    ADD CONSTRAINT task_tags_tag_id_fkey
-    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE;
+CREATE INDEX idx_tasks_project_status ON tasks(project_id, status);
+CREATE INDEX idx_tasks_user_status_priority ON tasks(user_id, status, priority);
+CREATE INDEX idx_tasks_user_due_date ON tasks(user_id, due_date);
+CREATE UNIQUE INDEX idx_tasks_project_node_uid ON tasks(project_id, node_uid);
+
+CREATE UNIQUE INDEX idx_nodes_mindmap_uid ON mindmap_nodes(mindmap_id, uid);
+CREATE INDEX idx_nodes_project_id ON mindmap_nodes(project_id);
+CREATE INDEX idx_nodes_mindmap_id ON mindmap_nodes(mindmap_id);
+CREATE INDEX idx_nodes_parent_uid ON mindmap_nodes(parent_uid);
+CREATE INDEX idx_nodes_is_task ON mindmap_nodes(is_task);
+
+CREATE UNIQUE INDEX idx_tags_user_name ON tags(user_id, name);
+
+CREATE UNIQUE INDEX idx_project_tags_project_tag ON project_tags(project_id, tag_id);
+
+CREATE UNIQUE INDEX idx_task_tags_task_tag ON task_tags(task_id, tag_id);
+
+-- --------------------------------------------
+-- 6. 重建触发器
+-- --------------------------------------------
+CREATE TRIGGER update_projects_updated_at
+    BEFORE UPDATE ON projects
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_mindmaps_updated_at
+    BEFORE UPDATE ON mindmaps
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_tasks_updated_at
+    BEFORE UPDATE ON tasks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_mindmap_nodes_updated_at
+    BEFORE UPDATE ON mindmap_nodes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- --------------------------------------------
+-- 7. 启用 RLS
+-- --------------------------------------------
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mindmaps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mindmap_nodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE task_tags ENABLE ROW LEVEL SECURITY;
+
+-- --------------------------------------------
+-- 8. 重建 RLS Policy
+-- --------------------------------------------
+CREATE POLICY "Users can only access own projects"
+    ON projects FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can only access own mindmaps"
+    ON mindmaps FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can only access own nodes"
+    ON mindmap_nodes FOR ALL
+    USING (project_id IN (
+        SELECT id FROM projects WHERE user_id = auth.uid()
+    ));
+
+CREATE POLICY "Users can only access own tasks"
+    ON tasks FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can only access own tags"
+    ON tags FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can only access own project_tags"
+    ON project_tags FOR ALL
+    USING (project_id IN (
+        SELECT id FROM projects WHERE user_id = auth.uid()
+    ));
+
+CREATE POLICY "Users can only access own task_tags"
+    ON task_tags FOR ALL
+    USING (task_id IN (
+        SELECT id FROM tasks WHERE user_id = auth.uid()
+    ));
 
 -- ============================================
 -- Migration Complete
