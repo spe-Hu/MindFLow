@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { db } from '@/lib/db'
+import { safeLinkUrl } from '@/lib/sanitize'
 import type { LocalTask } from '@/lib/db'
 import { usePomodoroStore } from '@/stores/pomodoroStore'
 import {
@@ -91,17 +92,24 @@ function parseInline(text: string): React.ReactNode[] {
           )
           break
         case 'link':
-          tokens.push(
-            <a
-              key={tokens.length}
-              href={earliestMatch.groups[1]}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary hover:underline"
-            >
-              {earliestMatch.groups[0]}
-            </a>
-          )
+          {
+            const safeUrl = safeLinkUrl(earliestMatch.groups[1])
+            if (safeUrl) {
+              tokens.push(
+                <a
+                  key={tokens.length}
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  {earliestMatch.groups[0]}
+                </a>
+              )
+            } else {
+              tokens.push(<span key={tokens.length}>{earliestMatch.groups[0]}</span>)
+            }
+          }
           break
       }
       remaining = remaining.slice(earliestMatch.index + earliestMatch.length)

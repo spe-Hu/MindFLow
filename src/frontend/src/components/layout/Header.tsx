@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, Menu, LayoutDashboard, LogOut, Settings } from 'lucide-react'
+import { Search, Menu, LayoutDashboard, LogOut, Settings, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
+import { usePWA } from '@/hooks/usePWA'
 import { NotificationPanel } from './NotificationPanel'
 import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator'
 
@@ -16,6 +17,7 @@ export function Header({ className }: HeaderProps) {
   const navigate = useNavigate()
   const { toggleSidebar, sidebarCollapsed } = useUIStore()
   const { user, logout } = useAuthStore()
+  const { installPrompt, install } = usePWA()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -72,6 +74,19 @@ export function Header({ className }: HeaderProps) {
         <NotificationPanel />
 
         <SyncStatusIndicator />
+
+        {installPrompt && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={install}
+            title="安装到桌面"
+            aria-label="安装到桌面"
+          >
+            <Download className="h-4 w-4 text-text-secondary" />
+          </Button>
+        )}
 
         {/* User Avatar / Menu */}
         <div className="relative" ref={menuRef}>
