@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* MindFlow Design Tokens — Light Mode */
+    --color-primary: #4F46E5;
+    --color-primary-hover: #4338ca;
+    --color-primary-ring: rgba(79, 70, 229, 0.3);
+    --color-primary-subtle: rgba(79, 70, 229, 0.08);
+
+    --bg-primary: #F8FAFC;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F1F5F9;
+
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+    --text-on-primary: #FFFFFF;
+
+    --border-default: #E2E8F0;
+    --border-hover: #CBD5E1;
+    --border-focus: #4F46E5;
+
+    --color-success: #3FB950;
+    --color-warning: #D29922;
+    --color-danger: #EF4444;
+
+    --priority-high: #EF4444;
+    --priority-medium: #F59E0B;
+    --priority-low: #3B82F6;
+    --priority-urgent: #DC2626;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 16px rgba(0, 0, 0, 0.08);
+    --shadow-glow: 0 0 40px rgba(79, 70, 229, 0.08);
+
+    --easing-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    --easing-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --font-body: 'Inter', 'Noto Sans SC', 'PingFang SC', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    /* shadcn/ui compatible tokens */
+    --background: #F8FAFC;
+    --foreground: #0F172A;
+    --card: #FFFFFF;
+    --card-foreground: #0F172A;
+    --popover: #FFFFFF;
+    --popover-foreground: #0F172A;
+    --primary: #4F46E5;
+    --primary-foreground: #FFFFFF;
+    --secondary: #F1F5F9;
+    --secondary-foreground: #0F172A;
+    --muted: #F1F5F9;
+    --muted-foreground: #94A3B8;
+    --accent: #F1F5F9;
+    --accent-foreground: #0F172A;
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    --border: #E2E8F0;
+    --input: #E2E8F0;
+    --ring: #4F46E5;
+    --radius: 0.5rem;
+  }
+
+  [data-theme='dark'] {
+    --color-primary: #6366f1;
+    --color-primary-hover: #818cf8;
+    --color-primary-ring: rgba(99, 102, 241, 0.4);
+    --color-primary-subtle: rgba(99, 102, 241, 0.12);
+
+    --bg-primary: #0B0F19;
+    --bg-surface: #111827;
+    --bg-elevated: #1f2937;
+
+    --text-primary: #F1F5F9;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+    --text-on-primary: #FFFFFF;
+
+    --border-default: #30363D;
+    --border-hover: #374151;
+    --border-focus: #6366f1;
+
+    --color-success: #3FB950;
+    --color-warning: #D29922;
+    --color-danger: #F85149;
+
+    /* shadcn/ui dark tokens */
+    --background: #0B0F19;
+    --foreground: #F1F5F9;
+    --card: #111827;
+    --card-foreground: #F1F5F9;
+    --popover: #111827;
+    --popover-foreground: #F1F5F9;
+    --primary: #6366f1;
+    --primary-foreground: #FFFFFF;
+    --secondary: #1f2937;
+    --secondary-foreground: #F1F5F9;
+    --muted: #1f2937;
+    --muted-foreground: #6B7280;
+    --accent: #1f2937;
+    --accent-foreground: #F1F5F9;
+    --destructive: #F85149;
+    --destructive-foreground: #FFFFFF;
+    --border: #30363D;
+    --input: #30363D;
+    --ring: #6366f1;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    color-scheme: light dark;
+  }
+
+  [data-theme='dark'] html {
+    color-scheme: dark;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .dot-grid {
+    background-image: radial-gradient(circle, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  [data-theme='dark'] .dot-grid {
+    background-image: radial-gradient(circle, rgba(107, 114, 128, 0.12) 1px, transparent 1px);
+  }
+}
+
+/* Dialog overlay backdrop — force visible regardless of Base UI internal behavior */
+[data-slot="dialog-overlay"] {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

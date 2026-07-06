@@ -1,0 +1,12 @@
+{
+  "name": "e2e",
+  "version": "1.0.0",
+  "description": "基于 PRD 验收标准 (AC-1 ~ AC-13),使用 Playwright 风格 API 描述用户旅程。 执行环境: Playwright MCP 工具 (mcp__playwright__browser_*)。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

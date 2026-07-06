@@ -1,0 +1,115 @@
+import { useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Plus } from 'lucide-react'
+import { ViewHeader } from '@/components/layout/ViewHeader'
+import { useProjectStore } from '@/stores/projectStore'
+import { useTaskStore } from '@/stores/taskStore'
+import { cn } from '@/lib/utils'
+
+const COLUMNS: { status: string; title: string }[] = [
+  { status: 'todo', title: '待办' },
+  { status: 'in_progress', title: '进行中' },
+  { status: 'done', title: '已完成' },
+]
+
+const PRIORITY_DOT: Record<string, string> = {
+  high: 'bg-priority-high',
+  medium: 'bg-priority-medium',
+  low: 'bg-priority-low',
+  urgent: 'bg-priority-urgent',
+}
+
+export function ProjectBoardPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { setActiveProject } = useProjectStore()
+  const { projectTasks, loadProjectTasks, updateTask } = useTaskStore()
+
+  useEffect(() => {
+    if (id) {
+      setActiveProject(id)
+      loadProjectTasks(id)
+    }
+  }, [id, setActiveProject, loadProjectTasks])
+
+  if (!id) return null
+
+  return (
+    <div className="flex flex-col h-full">
+      <ViewHeader projectId={id} />
+      <div className="flex-1 overflow-x-auto overflow-y-hidden bg-bg-primary px-6 py-4 flex gap-6">
+        {COLUMNS.map((col) => {
+          const tasks = projectTasks.filter((t) => t.status === col.status)
+          return (
+            <div key={col.status} className="w-[280px] flex-shrink-0 flex flex-col h-full">
+              <div className="h-10 flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-text-primary">{col.title}</span>
+                  <span className="h-5 px-2 rounded-full text-2xs bg-bg-elevated text-text-secondary flex items-center">
+                    {tasks.length}
+                  </span>
+                </div>
+              </div>
+              <div
+                className="flex-1 overflow-y-auto flex flex-col gap-3"
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'move'
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const taskId = e.dataTransfer.getData('text/plain')
+                  if (taskId) updateTask(taskId, { status: col.status as 'todo' | 'in_progress' | 'done' | 'cancelled' })
+                }}
+              >
+                {tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', task.id)
+                      e.dataTransfer.effectAllowed = 'move'
+                    }}
+                    className={cn(
+                      'bg-bg-surface border border-border-default rounded-md p-3',
+                      'hover:shadow-sm hover:border-border-hover transition-all duration-fast cursor-pointer',
+                      'active:opacity-60',
+                      task.status === 'done' && 'opacity-65'
+                    )}
+                    onClick={() => navigate(`/project/${id}`)}
+                  >
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className={cn('h-2 w-2 rounded-full mt-1.5 shrink-0', PRIORITY_DOT[task.priority] || 'bg-text-muted')} />
+                      <span
+                        className={cn(
+                          'text-sm text-text-primary flex-1',
+                          task.status === 'done' && 'line-through text-text-muted'
+                        )}
+                      >
+                        {task.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xs font-mono text-text-muted">
+                        {task.due_date ? new Date(task.due_date).toLocaleDateString('zh-CN') : ''}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {tasks.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <span className="text-xs text-text-muted">还没有任务</span>
+                  </div>
+                )}
+              </div>
+              <button className="w-full h-9 flex items-center justify-center gap-2 text-sm text-text-muted hover:text-text-secondary hover:bg-bg-elevated rounded-md mt-2 transition-colors duration-fast">
+                <Plus className="h-4 w-4" />
+                添加任务
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
