@@ -1,9 +1,10 @@
 -- ============================================
--- MindFlow v1.1 — Initial Schema Migration
+-- MindFlow v1.2 — Initial Schema Migration
 -- ============================================
+-- 说明：业务表 id 列使用 text 类型（兼容本地自定义 string ID），
+--       仅 user_id / auth 相关列保持 uuid（外键指向 auth.users.id）。
 -- 可直接在 Supabase SQL Editor 中执行
--- 生成日期：2026-07-03
--- 作者：高见远（架构师）
+-- 生成日期：2026-07-06
 -- ============================================
 
 -- --------------------------------------------
@@ -46,8 +47,9 @@ CREATE TRIGGER update_users_updated_at
 -- 4. 项目表 (projects)
 -- --------------------------------------------
 -- 说明：项目为顶层实体，每个项目对应一张思维导图（mindmaps 1:1）
+-- id 使用 text 以兼容本地自定义 string ID
 CREATE TABLE IF NOT EXISTS projects (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id text PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name varchar(200) NOT NULL,
     color varchar(7) DEFAULT '#4F46E5',
@@ -76,8 +78,8 @@ CREATE TRIGGER update_projects_updated_at
 -- --------------------------------------------
 -- 说明：MVP 阶段项目与导图 1:1 关联，project_id 带 UNIQUE 约束
 CREATE TABLE IF NOT EXISTS mindmaps (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id uuid NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
+    id text PRIMARY KEY,
+    project_id text NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title varchar(200) NOT NULL,
     root_node_id varchar(64) NOT NULL,
@@ -105,10 +107,10 @@ CREATE TRIGGER update_mindmaps_updated_at
 -- --------------------------------------------
 -- 说明：从导图节点中提取的任务，支持项目级与全局级查询
 CREATE TABLE IF NOT EXISTS tasks (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id text PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    mindmap_id uuid NOT NULL REFERENCES mindmaps(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    mindmap_id text NOT NULL REFERENCES mindmaps(id) ON DELETE CASCADE,
     node_uid varchar(64) NOT NULL,
     title text NOT NULL,
     status varchar(20) DEFAULT 'todo',
@@ -136,9 +138,9 @@ CREATE TRIGGER update_tasks_updated_at
 -- --------------------------------------------
 -- 说明：将树形结构扁平化存储，便于独立查询和同步
 CREATE TABLE IF NOT EXISTS mindmap_nodes (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    mindmap_id uuid NOT NULL REFERENCES mindmaps(id) ON DELETE CASCADE,
+    id text PRIMARY KEY,
+    project_id text NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    mindmap_id text NOT NULL REFERENCES mindmaps(id) ON DELETE CASCADE,
     uid varchar(64) NOT NULL,
     parent_uid varchar(64),
     text text NOT NULL,
@@ -146,7 +148,7 @@ CREATE TABLE IF NOT EXISTS mindmap_nodes (
     depth int NOT NULL,
     sort_order int NOT NULL DEFAULT 0,
     is_task boolean DEFAULT false,
-    task_id uuid REFERENCES tasks(id) ON DELETE SET NULL,
+    task_id text REFERENCES tasks(id) ON DELETE SET NULL,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
 );
@@ -167,7 +169,7 @@ CREATE TRIGGER update_mindmap_nodes_updated_at
 -- 8. 标签表 (tags)
 -- --------------------------------------------
 CREATE TABLE IF NOT EXISTS tags (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id text PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name varchar(50) NOT NULL,
     color varchar(7) DEFAULT '#3B82F6',
@@ -181,9 +183,9 @@ CREATE UNIQUE INDEX idx_tags_user_name ON tags(user_id, name);
 -- 9. 项目-标签关联表 (project_tags)
 -- --------------------------------------------
 CREATE TABLE IF NOT EXISTS project_tags (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    tag_id uuid NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    id text PRIMARY KEY,
+    project_id text NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    tag_id text NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
     created_at timestamptz DEFAULT now()
 );
 
@@ -194,9 +196,9 @@ CREATE UNIQUE INDEX idx_project_tags_project_tag ON project_tags(project_id, tag
 -- 10. 任务-标签关联表 (task_tags)
 -- --------------------------------------------
 CREATE TABLE IF NOT EXISTS task_tags (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id uuid NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    tag_id uuid NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    id text PRIMARY KEY,
+    task_id text NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    tag_id text NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
     created_at timestamptz DEFAULT now()
 );
 

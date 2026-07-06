@@ -34,6 +34,8 @@ export function ProjectMindMapPage() {
         const latest = list.length > 0
           ? list.reduce((a, b) => (a.version > b.version ? a : b))
           : null
+        // eslint-disable-next-line no-console
+        console.log('[ProjectMindMapPage] DB query done — latest root:', (latest?.tree_data as any)?.data?.text, '| loading→false')
         setMindmap(latest)
         setLoading(false)
       })

@@ -469,3 +469,9 @@ export async function fixHealthIssues(issues: HealthIssue[]): Promise<number> {
   }
   return fixed
 }
+
+// Expose for E2E automation (dev only)
+if (import.meta.env.DEV) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(window as any).__mindflowDb = db
+}

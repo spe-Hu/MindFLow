@@ -11,15 +11,20 @@ import { runJourney8 } from './journey-8'
 
 async function clearIndexedDB(page: Page) {
   await page.goto('/auth')
-  await page.evaluate(() => {
-    return new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase('mindflow-db')
-      req.onsuccess = () => resolve()
-      req.onerror = () => resolve()
-      req.onblocked = () => resolve()
-    })
+  await page.evaluate(async () => {
+    const dexie = (window as any).__mindflowDb
+    if (dexie && dexie.delete) {
+      await dexie.delete()
+    } else {
+      return new Promise<void>((resolve) => {
+        const req = indexedDB.deleteDatabase('mindflow-db')
+        req.onsuccess = () => resolve()
+        req.onerror = () => resolve()
+        req.onblocked = () => resolve()
+      })
+    }
   })
-  await page.waitForTimeout(300)
+  await page.waitForTimeout(500)
 }
 
 async function assertResults(results: { name: string; pass: boolean; detail?: string }[]) {

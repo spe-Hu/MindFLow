@@ -56,10 +56,10 @@ export async function runJourney8(page: Page) {
     await expect(createBtn).toBeVisible()
     await createBtn.click()
 
-    // 等待导航 + simple-mind-map 节点渲染
+    // 等待导航 + MindMapCanvas 挂载 + simple-mind-map 渲染
+    // ProjectMindMapPage 现在有 loading 状态，固定等待比 waitForSelector 更稳定
     await page.waitForURL(/\/project\//, { timeout: 15000 })
-    await page.waitForSelector('g.smm-node', { timeout: 12000 })
-    await page.waitForTimeout(600)
+    await page.waitForTimeout(2500)
 
     // 验证根节点文本是 AI 接收的主题
     const allTexts = await page.locator('g.smm-node text').allTextContents()

@@ -190,6 +190,9 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     // 优先使用缓存的最新数据 (data_change handler 中写入的用户编辑),
     // 否则回退到 prop 中的初始数据。用完后立即清空,避免污染下次重建。
     const data = latestTreeRef.current ?? buildMindMapData(mindmap)
+    const rootText = ((data as any)?.data?.text) || '(no text)'
+    const hasTreeData = !!mindmap?.tree_data
+    console.log('[MindMapCanvas] initMindMap called — mindmap?.tree_data:', hasTreeData, '| rootText:', rootText, '| layout:', layoutRef.current)
     latestTreeRef.current = null
     // 标记当前 instance 是否使用了默认数据初始化
     // (当 mindmap prop 尚未到达时 buildMindMapData 会返回 DEFAULT_TREE_DATA)
@@ -226,6 +229,8 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     } as any)
 
     instance.on('data_change', (newData: Record<string, unknown>) => {
+      const newRootText = ((newData as any)?.data?.text) || '(no text)'
+      console.log('[MindMapCanvas] data_change — usingDefault:', usingDefaultDataRef.current, '| initialChange:', initialChangeRef.current, '| rootText:', newRootText)
       // 如果当前 instance 是用 DEFAULT_TREE_DATA 初始化的（mindmap prop 尚未到达），
       // 跳过所有 data_change，避免把默认数据写回 IDB 覆盖正确数据 (Bug 6 延伸)。
       if (usingDefaultDataRef.current) return
@@ -373,6 +378,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
 
   // Re-init when layout changes
   useEffect(() => {
+    console.log('[MindMapCanvas] [layout] effect — layout:', layout, '| mindMapRef:', !!mindMapRef.current, '| usingDefault:', usingDefaultDataRef.current)
     // Save layout preference to parent
     onViewStateChange?.({ layout })
     if (!mindMapRef.current) return
