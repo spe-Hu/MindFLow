@@ -1,5 +1,32 @@
 # MindFlow MVP 自动迭代记录
 
+## 2026-07-06 第 24 次执行
+
+### 重点: 甘特图时间线视图（Could Have C1）
+
+**背景**: MVP v1.1 Must/Should Have 全部完成，Could Have 持续推进。竞品滴答清单没有甘特图，Xmind 也没有。甘特图是差异化卖点。
+
+**改动**:
+1. `src/pages/GanttPage.tsx` (新增) — 全局甘特图时间线视图：
+   - 按项目分组展示任务条形（按截止日期定位，按优先级默认持续时长）
+   - 周导航（上一周/下一周/今天），默认展示 21 天（3 周）
+   - 项目筛选 chip、项目折叠/展开
+   - hover tooltip 显示任务详情
+   - 点击条形跳转对应项目导图节点
+   - 无截止日期任务单独区域显示
+   - 今天日期竖线标记
+2. `src/App.tsx` — 新增 `/gantt` 路由
+3. `src/components/layout/Sidebar.tsx` — 展开态+折叠态新增「甘特图」导航入口（GanttChart 图标）
+4. `src/lib/db.ts` — `LocalTask` 接口新增可选 `start_date` / `duration_days` 字段（不改 schema，向后兼容）
+
+**验证**: Build 零 errors ✅, Lint 3 warnings（均为已有 shadcn/ui warning）✅, tsc 零 errors ✅
+
+**遗留**: E2E 中暂未覆盖甘特图链路，后续可新增 journey-8
+
+---
+
+# MindFlow MVP 自动迭代记录
+
 ## 2026-07-06 第 23 次执行
 
 ### 重点: AI 外部 API 配置面板（补全 C3 闭环）

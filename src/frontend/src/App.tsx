@@ -11,6 +11,7 @@ import { OutlinePage } from '@/pages/OutlinePage'
 import { GlobalTasksPage } from '@/pages/GlobalTasksPage'
 import { GlobalBoardPage } from '@/pages/GlobalBoardPage'
 import { CalendarPage } from '@/pages/CalendarPage'
+import { GanttPage } from '@/pages/GanttPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { AuthPage } from '@/pages/AuthPage'
 import { useAuthStore } from '@/stores/authStore'
@@ -51,6 +52,7 @@ function App() {
             <Route path="/global-tasks" element={<GlobalTasksPage />} />
             <Route path="/global-tasks/board" element={<GlobalBoardPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/gantt" element={<GanttPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

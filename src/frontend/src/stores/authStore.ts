@@ -40,11 +40,35 @@ export const useAuthStore = create<AuthState>()(
           const session = data.session
 
           if (session?.user) {
-            const { data: userData } = await supabase
+            let { data: userData, error: userError } = await supabase
               .from('users')
               .select('*')
               .eq('id', session.user.id)
-              .single()
+              .maybeSingle()
+
+            // 自动创建缺失的 users 扩展表记录（OAuth / 邮箱验证后首次登录）
+            if (!userData || userError) {
+              const { error: insertErr } = await supabase.from('users').upsert({
+                id: session.user.id,
+                username: session.user.email?.split('@')[0] || 'user_' + session.user.id.slice(0, 8),
+                display_name: session.user.user_metadata?.full_name
+                  || session.user.email?.split('@')[0]
+                  || '用户',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              } as any)
+
+              if (!insertErr) {
+                const { data: newData } = await supabase
+                  .from('users')
+                  .select('*')
+                  .eq('id', session.user.id)
+                  .maybeSingle()
+                userData = newData
+              } else {
+                console.error('[Auth] Failed to auto-create user profile:', insertErr)
+              }
+            }
 
             set({
               user: userData as AppUser | null,
@@ -80,11 +104,32 @@ export const useAuthStore = create<AuthState>()(
           const user = data.user
 
           if (session && user) {
-            const { data: userData } = await supabase
+            let { data: userData, error: userError } = await supabase
               .from('users')
               .select('*')
               .eq('id', user.id)
-              .single()
+              .maybeSingle()
+
+            if (!userData || userError) {
+              const { error: insertErr } = await supabase.from('users').upsert({
+                id: user.id,
+                username: email.split('@')[0],
+                display_name: email.split('@')[0],
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              } as any)
+
+              if (!insertErr) {
+                const { data: newData } = await supabase
+                  .from('users')
+                  .select('*')
+                  .eq('id', user.id)
+                  .maybeSingle()
+                userData = newData
+              } else {
+                console.error('[Auth] Failed to auto-create user profile on login:', insertErr)
+              }
+            }
 
             set({
               user: userData as AppUser | null,

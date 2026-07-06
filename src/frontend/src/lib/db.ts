@@ -38,6 +38,8 @@ export interface LocalTask {
   status: 'todo' | 'in_progress' | 'done' | 'cancelled'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   due_date?: Date
+  start_date?: Date
+  duration_days?: number
   completed_at?: Date
   sort_order: number
   user_id?: string

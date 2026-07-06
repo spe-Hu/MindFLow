@@ -187,14 +187,13 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     // 重置首次 data_change 跳过标志 (Bug 6 延伸)
     initialChangeRef.current = true
 
-    // Bug 6: 优先使用缓存的最新数据 (仅 layout effect 显式写入),
+    // 优先使用缓存的最新数据 (data_change handler 中写入的用户编辑),
     // 否则回退到 prop 中的初始数据。用完后立即清空,避免污染下次重建。
-    const hasCached = latestTreeRef.current !== null
     const data = latestTreeRef.current ?? buildMindMapData(mindmap)
     latestTreeRef.current = null
     // 标记当前 instance 是否使用了默认数据初始化
     // (当 mindmap prop 尚未到达时 buildMindMapData 会返回 DEFAULT_TREE_DATA)
-    usingDefaultDataRef.current = !hasCached && !mindmap?.tree_data
+    usingDefaultDataRef.current = !mindmap?.tree_data
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const instance = new MindMap({
@@ -235,8 +234,8 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         initialChangeRef.current = false
         return
       }
-      // 注意:不要写 latestTreeRef,以免污染缓存。
-      // latestTreeRef 只在 [layout] effect 中显式设置,用于一次性重建。
+      // 缓存最新数据到 latestTreeRef,供 layout 变化重建 instance 时使用
+      latestTreeRef.current = newData
       onDataChange?.(newData)
       // 改为防抖同步,避免快速 data_change 竞态导致 task 记录丢失 (Bug 5)
       scheduleTasksSync(projectIdRef.current, newData)
@@ -377,29 +376,20 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     // Save layout preference to parent
     onViewStateChange?.({ layout })
     if (!mindMapRef.current) return
-    // Bug 6: destroy 前先从 instance 拿最新数据,
-    // 缓存到 latestTreeRef 并同步触发 onDataChange (写入 IDB),
-    // 避免 initMindMap 重建时使用过期的 mindmap state 数据。
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const fullData = (mindMapRef.current as any)?.getData?.(true)
-      const root = fullData?.root
-      if (root && typeof root === 'object') {
-        const treeData = { ...root, smmVersion: fullData?.smmVersion } as Record<string, unknown>
-        latestTreeRef.current = treeData
-        // 把当前 layout 一起传入 onDataChange,确保 view_state.layout 同步写入 IDB
-        // 否则 handleDataChange 在 onViewStateChange 完成前跑会用空 view_state 覆盖。
-        onDataChange?.(treeData, { layout })
-      }
-    } catch {
-      // 拿到最新数据失败,fallback 到 prop 数据
+    // 如果当前 instance 是用 DEFAULT_TREE_DATA 初始化的（mindmap prop 尚未到达），
+    // 直接 destroy + reinit，不需要从 instance 拿数据（数据是默认的）。
+    if (usingDefaultDataRef.current) {
+      mindMapRef.current.destroy()
+      mindMapRef.current = null
+      initMindMap()
+      return
     }
+    // layout 真正变化时：destroy 旧 instance 并用最新数据重建。
+    // 最新数据来自 latestTreeRef (data_change handler 缓存的用户编辑) 或 mindmap prop。
+    // 不再从 instance 调用 getData(true) + onDataChange：data_change handler 已负责保存到 DB。
     mindMapRef.current.destroy()
     mindMapRef.current = null
     initMindMap()
-    return () => {
-      // cleanup is void
-    }
   }, [layout]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleTask = useCallback(() => {

@@ -111,6 +111,10 @@ export function NewProjectDialog() {
     const { syncTasksFromTree } = await import('@/lib/db')
     await syncTasksFromTree(projectId, treeData)
 
+    // 短暂延迟，确保 IndexedDB put 事务已提交到索引，
+    // 避免导航后 ProjectMindMapPage 查询时事务尚未可见 (竞态修复)。
+    await new Promise((r) => setTimeout(r, 300))
+
     setIsCreating(false)
     handleClose()
     navigate(`/project/${projectId}`)

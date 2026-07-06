@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Settings, Plus, FolderOpen,
   MoreHorizontal, Pencil, Trash2, Archive, CalendarDays, Clock,
-  BarChart3,
+  BarChart3, GanttChart,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -70,6 +70,7 @@ export function Sidebar() {
   const isDashboard = location.pathname === '/dashboard'
   const isGlobalTasks = location.pathname.startsWith('/global-tasks')
   const isCalendar = location.pathname === '/calendar'
+  const isGantt = location.pathname === '/gantt'
   const isSettings = location.pathname === '/settings'
 
   // Project action menu state
@@ -204,6 +205,18 @@ export function Sidebar() {
         >
           <CalendarDays className="h-4 w-4" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            'h-8 w-8 mb-2',
+            isGantt && 'bg-primary-subtle text-primary-600'
+          )}
+          onClick={() => navigate('/gantt')}
+          aria-label="甘特图"
+        >
+          <GanttChart className="h-4 w-4" />
+        </Button>
         <Separator className="my-2 w-6" />
         <div className="flex flex-col gap-1.5 items-center flex-1 overflow-y-auto py-1">
           {projects.map((p) => (
@@ -284,6 +297,18 @@ export function Sidebar() {
           >
             <CalendarDays className="h-4 w-4" />
             日历
+          </button>
+          <button
+            onClick={() => navigate('/gantt')}
+            className={cn(
+              'w-full flex items-center gap-2.5 h-9 px-3 rounded-md text-sm font-medium transition-colors duration-fast',
+              isGantt
+                ? 'bg-primary-subtle text-primary-600'
+                : 'text-text-secondary hover:bg-bg-elevated hover:text-text-primary'
+            )}
+          >
+            <GanttChart className="h-4 w-4" />
+            甘特图
           </button>
         </div>
 

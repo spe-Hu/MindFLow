@@ -15,6 +15,7 @@ export function ProjectMindMapPage() {
   const { setActiveProject } = useProjectStore()
   const { loadProjectTasks } = useTaskStore()
   const [mindmap, setMindmap] = useState<LocalMindmap | null>(null)
+  const [loading, setLoading] = useState(true)
   const [zoom, setZoom] = useState(100)
   const canvasRef = useRef<MindMapCanvasRef>(null)
 
@@ -25,6 +26,7 @@ export function ProjectMindMapPage() {
 
   useEffect(() => {
     if (id) {
+      setLoading(true)
       setActiveProject(id)
       loadProjectTasks(id)
       // 取同一 project 下 version 最新的 mindmap，避免竞态产生多条记录时加载到旧数据
@@ -33,6 +35,7 @@ export function ProjectMindMapPage() {
           ? list.reduce((a, b) => (a.version > b.version ? a : b))
           : null
         setMindmap(latest)
+        setLoading(false)
       })
     }
   }, [id, setActiveProject, loadProjectTasks])
@@ -99,15 +102,25 @@ export function ProjectMindMapPage() {
         onZoomReset={() => canvasRef.current?.resetZoom()}
       />
       <div className="flex-1 overflow-hidden">
-        <MindMapCanvas
-          ref={canvasRef}
-          projectId={id}
-          mindmap={mindmap}
-          onDataChange={handleDataChange}
-          onViewStateChange={handleViewStateChange}
-          highlightNodeUid={highlightNodeUid}
-          onZoomChange={setZoom}
-        />
+        {loading ? (
+          <div className="flex items-center justify-center h-full text-text-muted text-sm">
+            加载思维导图中…
+          </div>
+        ) : !mindmap ? (
+          <div className="flex items-center justify-center h-full text-text-muted text-sm">
+            暂无思维导图数据
+          </div>
+        ) : (
+          <MindMapCanvas
+            ref={canvasRef}
+            projectId={id}
+            mindmap={mindmap}
+            onDataChange={handleDataChange}
+            onViewStateChange={handleViewStateChange}
+            highlightNodeUid={highlightNodeUid}
+            onZoomChange={setZoom}
+          />
+        )}
       </div>
     </div>
   )

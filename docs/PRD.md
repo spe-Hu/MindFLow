@@ -234,7 +234,7 @@ MindFlow 是一个融合思维导图与任务管理的网页版个人项目推�
 ### Could Have（排期待定）
 | # | 需求 | 说明 |
 |---|------|------|
-| C1 | 甘特图 | 时间线视图展示任务进度和依赖关系 |
+| C1 | 甘特图 | ✅ 已落地：全局甘特图时间线视图（/gantt），按项目分组展示任务条形，截止日期驱动条形位置，按优先级默认持续时长，支持项目筛选、折叠/展开、周导航、hover tooltip、点击跳转项目 |
 | C2 | 分享协作 | 链接分享、多人编辑 |
 | C3 | AI 生成 | ✅ 已落地：本地语义规则引擎（产品/论文/活动/周计划模板骨架 + 通用 OKR 回退）+ 可选 OpenAI API，新建项目对话框「AI 生成」卡片，输入主题秒级生成个性化导图结构并自动同步任务 |
 | C4 | 番茄钟 | ✅ 已落地：全局浮动计时面板（SVG 环形进度条、focus/shortBreak/longBreak 模式、浏览器通知），任务卡片联动显示已完成次数，node_detail 面板支持一键开始专注 |
@@ -376,3 +376,4 @@ MindFlow 是一个融合思维导图与任务管理的网页版个人项目推�
 | 2026-07-06 | 项目模板系统 | 新建项目时可选 5 个预置模板（空白/产品开发/论文写作/活动策划/周计划），降低新用户上手门槛。模板预置思维导图结构 + 任务节点 + 截止日期 + 优先级 | `src/lib/templates.ts`, `src/components/project/NewProjectDialog.tsx` |
 | 2026-07-06 | AI 辅助生成思维导图 | 新建项目对话框新增"AI 生成"卡片（第 6 格），用户输入主题后本地语义引擎自动匹配最接近的模板骨架并个性化根节点文本；未匹配时回退到通用 OKR 骨架。可选接入 OpenAI API（VITE_OPENAI_API_KEY）。生成后自动同步任务到 IndexedDB | `src/lib/aiMindMap.ts`, `src/components/project/NewProjectDialog.tsx` |
 | 2026-07-06 | AI 外部 API 配置面板 | Settings 新增「AI 助手」Tab：启用开关、API Key（带显隐切换）、Base URL、模型、优先使用 AI 开关。配置持久化到 IndexedDB settings 表。aiMindMap 动态读取配置替代硬编码环境变量 | `src/pages/SettingsPage.tsx`, `src/lib/aiMindMap.ts` |
+| 2026-07-06 | 甘特图时间线视图 | 全局甘特图 `/gantt`：按项目分组展示任务条形，截止日期驱动条形位置，按优先级默认持续时长（urgent=1/high=2/medium=3/low=5天）。支持项目筛选 chip、项目折叠/展开、周导航（上一周/下一周/今天）、hover tooltip、点击条形跳转项目导图。无截止日期任务单独区域显示。侧边栏新增甘特图入口 | `src/pages/GanttPage.tsx`, `src/App.tsx`, `src/components/layout/Sidebar.tsx` |

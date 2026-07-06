@@ -51,7 +51,10 @@ export async function syncProjectToCloud(project: LocalProject): Promise<void> {
   }
 
   const { error } = await (supabase.from('projects').upsert(payload as any, { onConflict: 'id' }) as any)
-  if (error) console.error('Sync project failed:', error)
+  if (error) {
+    console.error('Sync project failed:', error)
+    throw new Error(`项目 "${project.name}" 同步失败: ${error.message}`)
+  }
 }
 
 export async function deleteProjectFromCloud(projectId: string): Promise<void> {
@@ -82,7 +85,10 @@ export async function syncMindmapToCloud(mindmap: LocalMindmap): Promise<void> {
   }
 
   const { error } = await (supabase.from('mindmaps').upsert(payload as any, { onConflict: 'id' }) as any)
-  if (error) console.error('Sync mindmap failed:', error)
+  if (error) {
+    console.error('Sync mindmap failed:', error)
+    throw new Error(`思维导图同步失败: ${error.message}`)
+  }
 }
 
 export async function deleteMindmapFromCloud(mindmapId: string): Promise<void> {
@@ -104,9 +110,9 @@ export async function syncTaskToCloud(task: LocalTask): Promise<void> {
     .from('mindmaps')
     .select('id')
     .eq('project_id', task.project_id)
-    .single()
+    .maybeSingle()
 
-  const mindmapId = (mindmapData as any)?.id ?? task.project_id
+  const mindmapId = mindmapData?.id ?? task.project_id
 
   const payload: TaskInsert = {
     id: task.id,
@@ -125,7 +131,10 @@ export async function syncTaskToCloud(task: LocalTask): Promise<void> {
   }
 
   const { error } = await (supabase.from('tasks').upsert(payload as any, { onConflict: 'id' }) as any)
-  if (error) console.error('Sync task failed:', error)
+  if (error) {
+    console.error('Sync task failed:', error)
+    throw new Error(`任务 "${task.title}" 同步失败: ${error.message}`)
+  }
 }
 
 export async function deleteTaskFromCloud(taskId: string): Promise<void> {
@@ -144,20 +153,41 @@ export async function migrateLocalDataToCloud(
   tasks: LocalTask[]
 ): Promise<void> {
   const userId = getUserId()
-  if (!userId || !isOnline()) return
+  if (!userId) throw new Error('用户未登录，无法同步')
+  if (!isOnline()) throw new Error('当前处于离线状态，无法同步')
 
   console.log(`[Sync] Migrating ${projects.length} projects, ${mindmaps.length} mindmaps, ${tasks.length} tasks to cloud...`)
 
+  const errors: string[] = []
+
   for (const project of projects) {
-    await syncProjectToCloud(project)
+    try {
+      await syncProjectToCloud(project)
+    } catch (e: any) {
+      errors.push(e.message)
+    }
   }
 
   for (const mindmap of mindmaps) {
-    await syncMindmapToCloud(mindmap)
+    try {
+      await syncMindmapToCloud(mindmap)
+    } catch (e: any) {
+      errors.push(e.message)
+    }
   }
 
   for (const task of tasks) {
-    await syncTaskToCloud(task)
+    try {
+      await syncTaskToCloud(task)
+    } catch (e: any) {
+      errors.push(e.message)
+    }
+  }
+
+  if (errors.length > 0) {
+    const summary = errors.slice(0, 3).join('; ')
+    const more = errors.length > 3 ? ` 等共 ${errors.length} 项失败` : ''
+    throw new Error(`云端同步失败: ${summary}${more}`)
   }
 
   console.log('[Sync] Migration complete.')
@@ -173,13 +203,26 @@ export async function fetchAllFromCloud(): Promise<{
   tasks: LocalTask[]
 }> {
   const userId = getUserId()
-  if (!userId || !isOnline()) return { projects: [], mindmaps: [], tasks: [] }
+  if (!userId) throw new Error('用户未登录，无法从云端拉取数据')
+  if (!isOnline()) throw new Error('当前处于离线状态，无法拉取数据')
 
-  const [{ data: projectsData }, { data: mindmapsData }, { data: tasksData }] = await Promise.all([
+  const [
+    { data: projectsData, error: projectsError },
+    { data: mindmapsData, error: mindmapsError },
+    { data: tasksData, error: tasksError },
+  ] = await Promise.all([
     supabase.from('projects').select('*').eq('user_id', userId),
     supabase.from('mindmaps').select('*').eq('user_id', userId),
     supabase.from('tasks').select('*').eq('user_id', userId),
   ])
+
+  if (projectsError || mindmapsError || tasksError) {
+    const msgs = [projectsError, mindmapsError, tasksError]
+      .filter(Boolean)
+      .map((e: any) => e.message)
+      .join('; ')
+    throw new Error(`云端查询失败: ${msgs}`)
+  }
 
   const projects: LocalProject[] = (projectsData ?? []).map((p: any) => ({
     id: p.id,

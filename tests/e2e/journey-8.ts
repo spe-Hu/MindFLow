@@ -56,57 +56,14 @@ export async function runJourney8(page: Page) {
     await expect(createBtn).toBeVisible()
     await createBtn.click()
 
-    // 等待导航 + mindmap canvas 渲染
+    // 等待导航 + simple-mind-map 节点渲染
     await page.waitForURL(/\/project\//, { timeout: 15000 })
-    await page.waitForTimeout(2000)
-    // 等待 simple-mind-map 节点渲染（较长 timeout，兼容首屏冷加载）
     await page.waitForSelector('g.smm-node', { timeout: 12000 })
-    await page.waitForTimeout(500)
-
-    // 诊断：检查 IndexedDB 中是否有 mindmap 数据
-    const debugInfo = await page.evaluate(() => {
-      return new Promise<string>((resolve) => {
-        const req = indexedDB.open('mindflow-db')
-        req.onsuccess = (e) => {
-          const db = (e.target as IDBOpenDBRequest).result
-          const results: string[] = []
-
-          // projects
-          const pTx = db.transaction('projects', 'readonly')
-          const pStore = pTx.objectStore('projects')
-          const pGetAll = pStore.getAll()
-          pGetAll.onsuccess = () => {
-            (pGetAll.result as Array<Record<string, unknown>>).forEach((p) => {
-              results.push(`proj: id=${p.id}, name=${p.name}`)
-            })
-
-            // mindmaps
-            const mTx = db.transaction('mindmaps', 'readonly')
-            const mStore = mTx.objectStore('mindmaps')
-            const mGetAll = mStore.getAll()
-            mGetAll.onsuccess = () => {
-              (mGetAll.result as Array<Record<string, unknown>>).forEach((m) => {
-                const td = m.tree_data as Record<string, unknown>
-                const rootText = ((td as any)?.data?.text) || ((td as any)?.root?.data?.text) || 'NO_TEXT'
-                const tdJson = JSON.stringify(td).slice(0, 300)
-                results.push(`mm: id=${m.id}, pid=${m.project_id}, root=${rootText}, td=${tdJson}`)
-              })
-              resolve(results.join('; '))
-            }
-          }
-        }
-        req.onerror = () => resolve('DB_ERROR')
-      })
-    })
-    console.log(`[J8 diag] ${debugInfo}`)
+    await page.waitForTimeout(600)
 
     // 验证根节点文本是 AI 接收的主题
-    // 注: 某些情况下 Dexie 连接重建有延迟,优先检查所有节点包含主题即可
     const allTexts = await page.locator('g.smm-node text').allTextContents()
-    if (!allTexts.includes('前端组件库开发')) {
-      const rootText = await getRootText(page)
-      expect(rootText).toContain('前端组件库开发')
-    }
+    expect(allTexts).toContain('前端组件库开发')
 
     // 验证 product-dev 模板结构（4 个一级分支）
     expect(allTexts).toContain('需求分析')
@@ -151,8 +108,13 @@ export async function runJourney8(page: Page) {
 
     const detailNode = page.locator('g.smm-node text').filter({ hasText: '需求分析' }).first()
     await expect(detailNode).toBeVisible()
-    await detailNode.dblclick()
-    await page.waitForTimeout(600)
+    await detailNode.click()
+    await page.waitForTimeout(400)
+
+    // 通过浮动工具栏「查看详情」按钮打开 Sheet（比 dblclick 更稳定）
+    const viewDetailBtn = page.locator('button:has-text("查看详情")').first()
+    await viewDetailBtn.click()
+    await page.waitForTimeout(500)
 
     // Sheet 打开后应能看到「属性」「文档」两个 Tab
     await expect(page.locator('text=属性').first()).toBeVisible()
@@ -255,8 +217,12 @@ export async function runJourney8(page: Page) {
   try {
     const pomoNode = page.locator('g.smm-node text').filter({ hasText: '需求分析' }).first()
     await expect(pomoNode).toBeVisible()
-    await pomoNode.dblclick()
-    await page.waitForTimeout(600)
+    await pomoNode.click()
+    await page.waitForTimeout(400)
+
+    const viewDetailBtn2 = page.locator('button:has-text("查看详情")').first()
+    await viewDetailBtn2.click()
+    await page.waitForTimeout(500)
 
     const startPomodoroBtn = page.locator('button:has-text("开始专注")').first()
     await expect(startPomodoroBtn).toBeVisible()
