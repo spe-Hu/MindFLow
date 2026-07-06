@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { NotificationPanel } from './NotificationPanel'
+import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator'
 
 interface HeaderProps {
   className?: string
@@ -69,6 +70,8 @@ export function Header({ className }: HeaderProps) {
         </button>
 
         <NotificationPanel />
+
+        <SyncStatusIndicator />
 
         {/* User Avatar / Menu */}
         <div className="relative" ref={menuRef}>

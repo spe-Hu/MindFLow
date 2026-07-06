@@ -235,6 +235,11 @@ export async function syncTasksFromTree(
       await db.tasks.bulkPut(tasks)
     }
   })
+
+  // NEW: 同步 tasks 到云端（已登录 + 在线时）
+  for (const task of tasks) {
+    await syncTaskToCloud(task).catch(() => { /* 离线或无登录态时静默跳过 */ })
+  }
 }
 
 // --------------------------------------------------

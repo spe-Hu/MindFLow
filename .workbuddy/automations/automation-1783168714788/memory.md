@@ -1,5 +1,149 @@
 # MindFlow MVP 自动迭代记录
 
+## 2026-07-06 第 32 次执行 — 大纲重构（幕布式编辑器）+ 思维导图拖拽
+
+**背景**：用户反馈大纲视图可编辑性太差，要求参考幕布重构；思维导图缺少拖拽等基本功能。
+
+**改动**：
+1. **新建 `src/components/outline/OutlineEditor.tsx`** — 幕布式结构化大纲编辑器：
+   - 树形扁平化为独立可编辑行（contentEditable div）
+   - Enter 创建同级，Tab/Shift+Tab 缩进提升
+   - Backspace 空行删除，圆点折叠/展开
+   - 任务勾选框，完成态自动划线
+   - 直接修改 tree_data，OutlinePage 自动同步到 DB/云端
+2. **重写 `src/pages/OutlinePage.tsx`** — 使用新编辑器，去掉 textarea + 手动同步按钮
+3. **`src/components/mindmap/MindMapCanvas.tsx`** — `enableFreeDrag: true` 开启节点自由拖拽
+
+**验证**：Build 零 errors ✅，Deploy → https://1330e35b.mindflow-app.pages.dev ✅
+
+---
+
+# MindFlow MVP 自动迭代记录
+
+## 2026-07-06 第 31 次执行 — 修复三个核心体验 Bug
+
+**背景**：用户截图反馈：1) 根节点改名不联动项目名；2) 布局切换（逻辑图→思维导图/组织结构）后内容消失只剩方块；3) 缺少箭头键节点导航。
+
+**改动**：
+1. **`ProjectMindMapPage.tsx`** — `handleDataChange` 检测根节点 `text` 变化，同步 `db.projects.update()` + `syncProjectToCloud()` + 刷新 Sidebar
+2. **`MindMapCanvas.tsx`** — layout effect 改用 `instance.setLayout()` 替代 `destroy+reinit+getData()`，解决多布局切换时数据丢失；保留 fallback reinit
+3. **`MindMapCanvas.tsx`** — 注册 `KeyboardNavigation` 插件，支持 ↑↓←→ 节点导航；底部 keyboard hint 同步更新
+
+**验证**：Build 零 errors ✅，Deploy → https://044ed615.mindflow-app.pages.dev ✅
+
+---
+
+## 2026-07-06 第 30 次执行 — 云端同步增强（自动双向同步 + 状态指示器）
+
+**背景**：用户反馈同步策略体验差，所有修改必须手动点击同步。希望做到「联网即自动同步、感受不到本地优先」。
+
+**改动**：
+1. **`src/lib/db.ts` — `syncTasksFromTree`**：本地 tasks 批量更新后，逐个调用 `syncTaskToCloud` 推送到云端（离线/未登录时静默跳过）。补全了此前 data_change→tasks 只写本地不推云端的最大窟窿。
+2. **`src/stores/syncStore.ts`（新增）** — 全局同步状态管理：
+   - `doAutoSync()`：完整双向同步（先 push 本地全部 → 再 pull 云端全部 → 覆盖本地）
+   - 30 秒最小间隔 + 500ms 调度防抖
+   - 状态：`idle | syncing | error | offline`
+3. **`src/components/layout/AppLayout.tsx`** — 3 个自动触发时机：
+   - App 启动后延迟 2 秒自动同步
+   - `visibilitychange` 切回前台时自动同步
+   - 网络恢复时真正触发同步（不再只是 toast）
+4. **`src/components/sync/SyncStatusIndicator.tsx`（新增）** — Header 右侧同步状态面板，点击弹出详情浮层
+5. **`src/components/layout/Header.tsx`** — 挂载 `SyncStatusIndicator`
+
+**验证**：Build 零 errors ✅，Deploy → https://b81d407c.mindflow-app.pages.dev ✅
+
+**已知限制**：
+- 多设备冲突：当前以「云端最新」为准覆盖本地，真正 CRDT/OT 冲突解决待后续
+- `syncTasksFromTree` 批量推送：每个 task 一个 upsert 请求，大数据量时请求数较多
+
+---
+
+## 2026-07-06 第 29 次执行 — PDF 导图导出 + 代码提交清理
+
+**内容**：工作区扫描发现大量未提交代码（第26~28次执行的日历周视图 + J8竞态修复 + sort_order bigint + pomodoro_count migration），先提交清理后再开发新功能。
+
+**提交清理**：
+- commit `d6fe974` — 日历周视图 + 竞态修复 + E2E测试更新 + Supabase migrations 003/004
+  - CalendarPage 月/周切换、MindMapCanvas layout effect 竞态修复、NewProjectDialog sort_order int 溢出修复、ProjectMindMapPage prevIdRef、E2E 稳定性改进
+
+**本次开发：PDF 导图导出（S2 补全）**
+- `MindMapCanvas.tsx`: 注册 `simple-mind-map/src/plugins/ExportPDF.js`，导出下拉菜单新增「导出 PDF」按钮
+- 复用 `instance.export('pdf', true, 'mindflow')` 内置下载流程（ExportPDF → PNG → pdf-lib → PDF → downloadFile）
+- 零新外部依赖（pdf-lib 已由 simple-mind-map 引入）
+- PRD S2 标记更新为"PNG/SVG/Markdown/PDF 导图导出已实现"
+
+**验证**：
+- Build 零 errors ✅
+- Cloudflare Pages 部署成功 ✅ → https://8358fc9c.mindflow-app.pages.dev
+
+**遗留**：
+- bundle 体积增加 ~176KB gzip（pdf-lib），后续可考虑动态导入懒加载
+
+---
+
+
+## 2026-07-06 第 28 次执行 — 修复云端同步失败（tasks 表缺失 pomodoro_count 列）
+
+**内容**：用户反馈所有任务同步失败，报错 "Could not find the 'pomodoro_count' column of 'tasks' in the schema cache"，共 14 项失败。
+
+**根因**：本地 `LocalTask.pomodoro_count` 字段在第 14 次执行（番茄钟功能）添加，但云端 Supabase `tasks` 表 schema 从未更新。`sync.ts` upsert 时携带该字段 → 云端报 "column not found"。
+
+**修复**：
+1. 新增 `supabase/migrations/004_add_task_columns.sql`：给 tasks 表添加 `pomodoro_count integer DEFAULT 0`
+2. `supabase db push` 推送到 remote 数据库
+3. migration list 验证 `004 | 004` ✅
+
+**验证**：
+- Build 零 errors ✅
+- migration 004 已在 remote ✅
+- `sync.ts` 推送字段与云端 tasks 表 schema 完全对照，无其他缺失 ✅
+
+**反思**：之前每次新增本地字段（如番茄钟加 `pomodoro_count`、模板加 `sort_order` bigint）都必须同步创建云端 migration。以后新增字段时，如果该字段需要同步到云端，必须「本地 Dexie 字段 + sync.ts payload + Supabase migration」三者同时到位，否则云端同步必炸。
+
+---
+
+## 2026-07-06 第 27 次执行 — 重新部署最新版本到 Cloudflare Pages
+
+**内容**：第 26 次执行的日历周视图代码 Build 成功但尚未部署，本次重新 build + deploy。
+
+**改动**：无新代码改动，纯重新部署。
+
+**验证**：Build 零 errors ✅，`wrangler pages deploy` 成功 → https://fbc0bc96.mindflow-app.pages.dev ✅
+
+---
+
+## 2026-07-06 第 26 次执行 — 日历周视图切换（S4 补全）
+
+**内容**：PRD S4 日历视图长期标注"周视图待后续"，本轮补全。
+
+**改动**：
+1. `src/pages/CalendarPage.tsx` — 新增 `viewMode` state，月/周切换按钮组，周视图 7 列横排 + 周导航 + 周区间标签，详情面板复用
+2. `tests/e2e/journey-4.ts` — 新增 CAL-17~CAL-20 覆盖周视图切换/高亮/任务/导航
+3. `docs/PRD.md` — S4 标记更新
+
+**验证**：Build 零 errors ✅
+
+---
+
+## 2026-07-06 第 25 次执行（紧急 Bug 修复）
+
+### 同步失败: `out of range for type integer` + FK 约束违例
+
+**根因**：`NewProjectDialog.tsx:84` 的 `sort_order: Date.now()` 产生约 1.78 万亿的时间戳值，远超 PostgreSQL `int` (32-bit) 上限 21.4 亿。projects 插入先炸，mindmaps/tasks 的 FK 跟着全崩，共 33 项失败。
+
+**修复**：
+1. `src/components/project/NewProjectDialog.tsx` — `sort_order` 改为 `maxExistingSortOrder + 1`
+2. `supabase/migrations/003_sort_order_bigint.sql` — projects/tasks/mindmap_nodes 的 sort_order 改为 `bigint`
+
+**验证**：
+- `supabase migration list --linked` 确认 001/002/003 均已在 remote ✅
+- `npx vite build` 零 errors ✅
+- `wrangler pages deploy` 成功 ✅（https://8b7ce523.mindflow-app.pages.dev）
+
+**反思**：上一轮修复 uuid→text 时只检查了 `id` 列，漏掉了 `sort_order` 的实际值范围。自动化环境中难以做真实 Supabase 登录态的端到端同步验证，但以后修改涉及数据库 schema 或同步链路时，必须显式核查「前端写入值」与「数据库列类型」的兼容性。
+
+---
+
 ## 2026-07-06 第 24 次执行
 
 ### 重点: 甘特图时间线视图（Could Have C1）

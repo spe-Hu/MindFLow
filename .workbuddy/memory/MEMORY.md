@@ -16,6 +16,7 @@
 - `useProjectIdRef` 模式: simple-mind-map data_change 闭包不能捕获 projectId,必须用 ref 持有最新值
 - `scheduleTasksSync` 防抖锁 (80ms) + 单事务原子化,解决 data_change 并发竞态导致 task 记录丢失 (Bug 5)
 - 云同步 UX: 登录后 `SyncMigrationDialog` 检测本地数据并弹出迁移选择; Settings「云端同步」Tab 提供手动上传/恢复; AppLayout 全局监听 online/offline Toast 提示
+- **自动双向同步（迭代35）**: `syncStore` 管理全局同步状态,`doAutoSync()` 执行完整双向同步（先 push 本地全部 → 再 pull 云端全部 → 覆盖本地）。3 个自动触发时机: App启动(延迟2s)、窗口聚焦(visibilitychange)、网络恢复(online)。最小间隔 30 秒防抖 + 500ms 调度防抖。`syncTasksFromTree` 已补上云端推送（此前只写本地IDB）。顶部 `SyncStatusIndicator` 显示同步状态（已同步/同步中/离线/出错）
 - AI 配置持久化: `settings` 表 key-value 存储 (`ai-enabled`/`ai-api-key`/`ai-base-url`/`ai-model`/`ai-prefer-api`)，生成时动态读取，替代硬编码环境变量
 
 ## 真实 Bug 修复历史 (5 个)
@@ -27,9 +28,9 @@
    修复:模块级防抖 + 互斥锁 + 单事务原子化 + data_change 改同步触发
 
 ## 测试覆盖
-- 7 个 journey 文件 (`tests/e2e/journey-{1,2,3,4,5,6,7}.spec.ts`),共 73 个断言
+- 8 个 journey 文件 (`tests/e2e/journey-{1,2,3,4,5,6,7,8}.spec.ts`),共 77+ 个断言
 - 使用 `npx playwright test tests/e2e/all-journeys.spec.ts --config tests/e2e/playwright.config.ts` 直接运行
-- 核心 AC 100% 覆盖 + 4 项 Should Have (归档/搜索/日历/导入) + 模板系统 (J7)
+- 核心 AC 100% 覆盖 + 5 项 Should Have (归档/搜索/日历/周视图/导入) + 模板系统 (J7) + AI/详情/番茄钟/Dashboard (J8)
 - 连续 5+ 轮回归全部通过，E2E 稳定性已验收
 
 ## 踩坑记录 (重要)
@@ -50,9 +51,9 @@
 
 ## 未完成功能 (Should/Could)
 - **Must Have**: 全部完成 ✅ (M1~M15，含暗色模式 M8)
-- **Should Have**: 全部完成 ✅ (S1 大纲 / S2 导入导出 / S3 云端同步 / S4 日历 / S5 搜索 / S6 最近编辑 / C6 归档)
-- **Could Have**: AI 生成 ✅ / 番茄钟 ✅ / Dashboard ✅ / 通知提醒 ✅ / 节点详情 ✅ / 存储管理面板 ✅ / 项目模板 ✅ / Markdown 备注 ✅ / 文件附件 ❌ / 甘特图 ❌ / 协作分享 ❌
-- **E2E 自动化集成**: ✅ 已封装 `npx playwright test` + `all-journeys.spec.ts`（7 journey / 73 断言），CI 接入待后续
+- **Should Have**: 全部完成 ✅ (S1 大纲 / S2 导入导出 (PDF 待后续) / S3 云端同步 / S4 日历月+周视图 / S5 搜索 / S6 最近编辑 / C6 归档)
+- **Could Have**: AI 生成 ✅ / 番茄钟 ✅ / Dashboard ✅ / 通知提醒 ✅ / 节点详情 ✅ / 存储管理面板 ✅ / 项目模板 ✅ / Markdown 备注 ✅ / 甘特图 ✅ / 文件附件 ❌ / 协作分享 ❌ / PDF 导出 ❌
+- **E2E 自动化集成**: ✅ 已封装 `npx playwright test` + `all-journeys.spec.ts`（8 journey / 77+ 断言），CI 接入待后续
 
 ## 新增组件
 - `components/sync/SyncMigrationDialog.tsx` — 登录后本地→云端迁移弹窗

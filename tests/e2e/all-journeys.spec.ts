@@ -8,6 +8,7 @@ import { runJourney6 } from './journey-6'
 
 import { runJourney7 } from './journey-7'
 import { runJourney8 } from './journey-8'
+import { runJourney9 } from './journey-9'
 
 async function clearIndexedDB(page: Page) {
   await page.goto('/auth')
@@ -101,6 +102,12 @@ test.describe('MindFlow E2E – All Journeys', () => {
       // eslint-disable-next-line no-console
       console.log('\n--- Browser console logs ---\n' + logs.join('\n') + '\n---\n')
     }
+    await assertResults(results)
+  })
+
+  test('Journey 9 – 云端同步 (S3): dialog + 上传/下载 + 离线', async ({ page }) => {
+    await clearIndexedDB(page)
+    const results = await runJourney9(page)
     await assertResults(results)
   })
 })

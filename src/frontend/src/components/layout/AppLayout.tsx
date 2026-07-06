@@ -7,6 +7,8 @@ import { SyncMigrationDialog } from '@/components/sync/SyncMigrationDialog'
 import { Toaster } from '@/components/ui/sonner'
 import { useProjectStore } from '@/stores/projectStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useAuthStore } from '@/stores/authStore'
+import { scheduleAutoSync, useSyncStore } from '@/stores/syncStore'
 import { cleanupOrphanedTasks } from '@/lib/db'
 import { toast } from 'sonner'
 
@@ -14,12 +16,37 @@ export function AppLayout() {
   const loadProjects = useProjectStore((s) => s.loadProjects)
   const setNewProjectDialogOpen = useUIStore((s) => s.setNewProjectDialogOpen)
   const offlineToastIdRef = useRef<string | number | null>(null)
+  const hasAutoSyncedRef = useRef(false)
 
   useEffect(() => {
     loadProjects()
     // Async data integrity cleanup - non-blocking
     cleanupOrphanedTasks().catch(() => { /* ignore */ })
   }, [loadProjects])
+
+  // --- Auto sync: app startup (debounced) ---
+  useEffect(() => {
+    if (hasAutoSyncedRef.current) return
+    const t = setTimeout(() => {
+      hasAutoSyncedRef.current = true
+      const { user } = useAuthStore.getState()
+      if (user && navigator.onLine) {
+        scheduleAutoSync()
+      }
+    }, 2000) // 延迟 2 秒，避免与初始化竞争
+    return () => clearTimeout(t)
+  }, [])
+
+  // --- Auto sync: window re-focus ---
+  useEffect(() => {
+    const handleVis = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        scheduleAutoSync()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVis)
+    return () => document.removeEventListener('visibilitychange', handleVis)
+  }, [])
 
   // Global shortcuts
   useEffect(() => {
@@ -42,6 +69,7 @@ export function AppLayout() {
   // Network status listener
   useEffect(() => {
     const handleOffline = () => {
+      useSyncStore.getState().setStatus('offline')
       offlineToastIdRef.current = toast.info('已切换到离线模式', {
         description: '数据将保存在本地，恢复联网后自动同步',
         duration: 6000,
@@ -50,6 +78,7 @@ export function AppLayout() {
     }
 
     const handleOnline = () => {
+      useSyncStore.getState().setStatus('idle')
       if (offlineToastIdRef.current != null) {
         toast.dismiss(offlineToastIdRef.current)
       }
@@ -58,6 +87,8 @@ export function AppLayout() {
         duration: 4000,
         id: 'network-online',
       })
+      // NEW: 真正触发自动同步
+      scheduleAutoSync()
     }
 
     window.addEventListener('offline', handleOffline)

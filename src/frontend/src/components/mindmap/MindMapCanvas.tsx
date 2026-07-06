@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react'
 import MindMap from 'simple-mind-map'
+import KeyboardNavigation from 'simple-mind-map/src/plugins/KeyboardNavigation.js'
 import Export from 'simple-mind-map/src/plugins/Export.js'
 import ExportPDF from 'simple-mind-map/src/plugins/ExportPDF.js'
 import type { LocalMindmap } from '@/lib/db'
@@ -9,10 +10,10 @@ import { CheckSquare, Square, CalendarDays, LayoutTemplate, Network, GitBranch, 
 import { NodeDetailSidebar } from './NodeDetailSidebar'
 import { toast } from 'sonner'
 
-// eslint-disable-next-line react-hooks/rules-of-hooks
+// 注册插件
 MindMap.usePlugin(Export)
-// eslint-disable-next-line react-hooks/rules-of-hooks
 MindMap.usePlugin(ExportPDF)
+MindMap.usePlugin(KeyboardNavigation)
 
 export interface MindMapCanvasRef {
   zoomIn: () => void
@@ -210,7 +211,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       layout: layoutRef.current as any,
       theme: 'default',
       readonly: false,
-      enableFreeDrag: false,
+      enableFreeDrag: true,
       // 关闭库内部自动 fit: 节点的 SVG <g> 元素在 onRenderEnd 时可能尚未稳定,
       // 触发 View.fit → G.rbox 报 "Getting rbox of element 'g' is not possible"。
       // 我们在 init 末尾自己延迟 fit 并 try/catch 兜底。
@@ -384,12 +385,11 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
   // Re-init when layout changes
   useEffect(() => {
     // 跳过 mount 首次执行：initMindMap effect 会先创建 instance，
-    // 这里若执行会立即 destroy+reinit 导致 DOM 不稳定 (J8 竞态修复)。
+    // 此时 instance 已经用了正确的 layout。
     if (layoutEffectFirstRun.current) {
       layoutEffectFirstRun.current = false
       return
     }
-    console.log('[MindMapCanvas] [layout] effect — layout:', layout, '| mindMapRef:', !!mindMapRef.current, '| usingDefault:', usingDefaultDataRef.current)
     // Save layout preference to parent
     onViewStateChange?.({ layout })
     if (!mindMapRef.current) return
@@ -401,19 +401,25 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       initMindMap()
       return
     }
-    // layout 真正变化时：destroy 旧 instance 并用最新数据重建。
-    // 先从当前 instance 获取最新数据（避免 latestTreeRef 被上次 re-init 清空后丢失用户编辑）。
-    // Bug: 连续两次 layout change 之间若无 data_change，latestTreeRef 为空，
-    // re-init 会回退到旧的 mindmap prop 数据，导致节点丢失 (J6 LAYOUT-2 回归)。
+    // 使用 instance.setLayout() 切换布局，无需 destroy+reinit。
+    // 避免 getData(true) 可能返回不完整数据导致节点丢失 (Bug: layout switch content disappears)。
     try {
-      const currentData = (mindMapRef.current as any).getData(true)
-      if (currentData) latestTreeRef.current = currentData
-    } catch {
-      // ignore: instance 可能尚未完全就绪
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(mindMapRef.current as any).setLayout(layout)
+    } catch (e) {
+      console.warn('[MindMapCanvas] setLayout failed, fallback to reinit:', e)
+      // fallback: 尝试 safe getData + destroy + reinit
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const currentData = (mindMapRef.current as any).getData(true)
+        if (currentData) latestTreeRef.current = currentData
+      } catch {
+        // ignore
+      }
+      mindMapRef.current.destroy()
+      mindMapRef.current = null
+      initMindMap()
     }
-    mindMapRef.current.destroy()
-    mindMapRef.current = null
-    initMindMap()
   }, [layout]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleTask = useCallback(() => {
@@ -676,6 +682,8 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         <span className="text-[10px] text-text-muted">Tab 添加子节点</span>
         <span className="text-border-default">|</span>
         <span className="text-[10px] text-text-muted">T 转为任务</span>
+        <span className="text-border-default">|</span>
+        <span className="text-[10px] text-text-muted">↑↓←→ 切换节点</span>
         <span className="text-border-default">|</span>
         <span className="text-[10px] text-text-muted">滚轮缩放</span>
       </div>

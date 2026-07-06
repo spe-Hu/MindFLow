@@ -6,7 +6,7 @@ import type { MindMapCanvasRef } from '@/components/mindmap/MindMapCanvas'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { db } from '@/lib/db'
-import { syncMindmapToCloud } from '@/lib/sync'
+import { syncMindmapToCloud, syncProjectToCloud } from '@/lib/sync'
 import type { LocalMindmap } from '@/lib/db'
 
 export function ProjectMindMapPage() {
@@ -50,6 +50,23 @@ export function ProjectMindMapPage() {
   const handleDataChange = useCallback(
     async (data: Record<string, unknown>, viewState?: Record<string, unknown>) => {
       if (!id) return
+      // 根节点改名 → 同步更新项目名
+      const newRootText = ((data as any)?.data?.text) as string | undefined
+      if (newRootText && newRootText.trim()) {
+        const trimmed = newRootText.trim()
+        const currentProject = await db.projects.get(id)
+        if (currentProject && currentProject.name !== trimmed) {
+          await db.projects.update(id, { name: trimmed, updated_at: new Date() })
+          await syncProjectToCloud({
+            ...currentProject,
+            name: trimmed,
+            updated_at: new Date(),
+          }).catch(() => { /* ignore offline */ })
+          // 刷新 projectStore 中的项目列表（更新 Sidebar）
+          const { loadProjects } = useProjectStore.getState()
+          await loadProjects().catch(() => {})
+        }
+      }
       const existing = await db.mindmaps.where('project_id').equals(id).first()
       if (existing) {
         await db.mindmaps.update(existing.id, {
