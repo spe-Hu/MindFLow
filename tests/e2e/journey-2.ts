@@ -13,13 +13,17 @@ const TASK_A_2 = 'A-视觉设计'
 const TASK_B_1 = 'B-技术调研'
 
 async function clickNodeByText(page: Page, text: string) {
-  const textLocator = page.locator('g.smm-node text').filter({ hasText: text }).first()
-  await textLocator.click({ force: true })
+  const el = page.locator('text=' + text).first()
+  await el.scrollIntoViewIfNeeded().catch(() => {})
+  const box = await el.boundingBox()
+  if (!box) throw new Error(`Node not found: ${text}`)
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await page.waitForTimeout(200)
 }
 
 async function addChildAndTask(page: Page, text: string, alsoMarkAsTask: boolean) {
   // 先 focus 到思维导图画布 (headless 下必须)
-  await page.locator('g.smm-node text').first().click()
+  await page.locator('g.smm-node').first().click({ force: true })
   await page.waitForTimeout(300)
   await page.keyboard.press('Tab')
   await page.waitForTimeout(400)

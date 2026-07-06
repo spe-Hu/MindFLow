@@ -18,6 +18,9 @@ export function ProjectMindMapPage() {
   const [loading, setLoading] = useState(true)
   const [zoom, setZoom] = useState(100)
   const canvasRef = useRef<MindMapCanvasRef>(null)
+  // 用 prevIdRef 代替 hasQueriedRef：只在 id 真正变化时才执行查询，
+  // 避免切换项目时因 ref 锁死导致加载旧项目数据（回归 Bug）。
+  const prevIdRef = useRef<string | null>(null)
 
   const highlightNodeUid = useMemo(() => {
     const params = new URLSearchParams(location.search)
@@ -25,23 +28,23 @@ export function ProjectMindMapPage() {
   }, [location.search])
 
   useEffect(() => {
-    if (id) {
-      setLoading(true)
-      setActiveProject(id)
-      loadProjectTasks(id)
-      // 取同一 project 下 version 最新的 mindmap，避免竞态产生多条记录时加载到旧数据。
-      // 改用 toArray + JS filter：Dexie where('project_id') 在 db.delete() 重建后偶发失效。
-      db.mindmaps.toArray().then((all) => {
-        const list = all.filter((m) => m.project_id === id)
-        const latest = list.length > 0
-          ? list.reduce((a, b) => (a.version > b.version ? a : b))
-          : null
-        // eslint-disable-next-line no-console
-        console.log('[ProjectMindMapPage] DB query done — latest root:', (latest?.tree_data as any)?.data?.text, '| loading→false')
-        setMindmap(latest)
-        setLoading(false)
-      })
-    }
+    if (!id || prevIdRef.current === id) return
+    prevIdRef.current = id
+    setLoading(true)
+    setActiveProject(id)
+    loadProjectTasks(id)
+    // 取同一 project 下 version 最新的 mindmap，避免竞态产生多条记录时加载到旧数据。
+    // 改用 toArray + JS filter：Dexie where('project_id') 在 db.delete() 重建后偶发失效。
+    db.mindmaps.toArray().then((all) => {
+      const list = all.filter((m) => m.project_id === id)
+      const latest = list.length > 0
+        ? list.reduce((a, b) => (a.version > b.version ? a : b))
+        : null
+      // eslint-disable-next-line no-console
+      console.log('[ProjectMindMapPage] DB query done — latest root:', (latest?.tree_data as any)?.data?.text, '| loading→false')
+      setMindmap(latest)
+      setLoading(false)
+    })
   }, [id, setActiveProject, loadProjectTasks])
 
   const handleDataChange = useCallback(

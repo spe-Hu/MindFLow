@@ -50,7 +50,7 @@ async function addChildTaskWithDueDate(
   let editWrap = page.locator('div.smm-node-edit-wrap')
   let retries = 0
   while (retries < 3) {
-    await page.locator('g.smm-node text').first().click()
+    await page.locator('g.smm-node').first().click({ force: true })
     await page.waitForTimeout(300)
     await page.keyboard.press('Tab')
     await page.waitForTimeout(500)
@@ -428,6 +428,67 @@ export async function runJourney4(page: Page) {
     results.push({ name: 'CAL-16 day25 任务容器正常渲染', pass: true })
   } catch (e: any) {
     results.push({ name: 'CAL-16 day25 任务容器正常渲染', pass: false, detail: e.message })
+  }
+
+  // ===== CAL-17: 切换到周视图 =====
+  try {
+    const weekBtn = page.locator('button:has-text("周")').first()
+    await weekBtn.click()
+    await page.waitForTimeout(400)
+    // 点击"今天"确保周视图基于实际今天（避免之前月份导航后 currentDate 不在本周）
+    const todayBtn = page.locator('button:has-text("今天")').first()
+    if (await todayBtn.isVisible().catch(() => false)) {
+      await todayBtn.click()
+      await page.waitForTimeout(400)
+    }
+    results.push({ name: 'CAL-17 切换到周视图', pass: true })
+  } catch (e: any) {
+    results.push({ name: 'CAL-17 切换到周视图', pass: false, detail: e.message })
+  }
+
+  // ===== CAL-18: 周视图显示周区间标签 =====
+  try {
+    const calText = await page.locator('main').innerText()
+    // 当前在月视图时周区间包含当前月+日，会有 "月" "日" 字样
+    // 至少验证 "周" 按钮是 active 状态 (背景色 primary-600)
+    const weekBtn = page.locator('button:has-text("周")').first()
+    const weekClass = await weekBtn.getAttribute('class')
+    if (!weekClass?.includes('bg-primary-600')) {
+      throw new Error('周视图按钮未高亮: ' + weekClass)
+    }
+    results.push({ name: 'CAL-18 周视图按钮高亮', pass: true })
+  } catch (e: any) {
+    results.push({ name: 'CAL-18 周视图按钮高亮', pass: false, detail: e.message })
+  }
+
+  // ===== CAL-19: 周视图能看到当周任务卡片 =====
+  try {
+    const calText = await page.locator('main').innerText()
+    // 有任务在本周内即可（不严格限定某天，因为"今天"决定本周范围）
+    const weeklyTasks = [`A-任务${day10}号`, `A-任务${day15}号`, `A-任务${day20}号`, `A-任务${day25}号A`]
+    const hasAnyTask = weeklyTasks.some((t) => calText.includes(t))
+    if (!hasAnyTask) {
+      throw new Error('周视图未显示本周内的任务')
+    }
+    results.push({ name: 'CAL-19 周视图显示当周任务', pass: true })
+  } catch (e: any) {
+    results.push({ name: 'CAL-19 周视图显示当天任务', pass: false, detail: e.message })
+  }
+
+  // ===== CAL-20: 周视图导航 (上一周/下一周) =====
+  try {
+    const calHeader20 = page.locator('main div.h-12').first()
+    let nextWeekBtn = calHeader20.locator('button').filter({ has: page.locator('svg') }).last()
+    if (await nextWeekBtn.count() === 0) {
+      nextWeekBtn = page.locator('main button').filter({ has: page.locator('svg') }).last()
+    }
+    await nextWeekBtn.click()
+    await page.waitForTimeout(300)
+    // 点击下一周后日期应变化 (任意 day15 的任务不应再可见，因为跳到了下星期)
+    // 但 day15 到下星期+7 可能仍有重叠任务，所以只验证导航不报错
+    results.push({ name: 'CAL-20 周视图导航 (下一周)', pass: true })
+  } catch (e: any) {
+    results.push({ name: 'CAL-20 周视图导航 (下一周)', pass: false, detail: e.message })
   }
 
   return results

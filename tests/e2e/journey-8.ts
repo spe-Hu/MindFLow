@@ -15,9 +15,12 @@ async function getRootText(page: Page): Promise<string> {
 
 /** 聚焦 simple-mind-map 中的特定文字节点 */
 async function focusNodeByText(page: Page, text: string) {
-  const node = page.locator('g.smm-node text').filter({ hasText: text }).first()
-  await expect(node).toBeVisible()
-  await node.click({ force: true })
+  const el = page.locator('text=' + text).first()
+  await el.scrollIntoViewIfNeeded().catch(() => {})
+  const box = await el.boundingBox()
+  if (!box) throw new Error(`Node not found: ${text}`)
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await page.waitForTimeout(200)
 }
 
 export async function runJourney8(page: Page) {
@@ -57,41 +60,18 @@ export async function runJourney8(page: Page) {
     await createBtn.click()
 
     // 等待导航 + MindMapCanvas 挂载 + simple-mind-map 渲染
+    // ProjectMindMapPage 现在有 loading 状态，MindMapCanvas 在 DB 查询完成后才挂载；
+    // simple-mind-map 首次渲染在 E2E 中需要 4~6s，使用 waitForFunction 轮询直到 g.smm-node 出现
     await page.waitForURL(/\/project\//, { timeout: 15000 })
-    await page.waitForTimeout(6000)
-
-    // 诊断：dump SVG DOM 结构 + __mindMap instance 状态
-    const diag = await page.evaluate(() => {
-      const svg = document.querySelector('svg')
-      const allTags = svg ? Array.from(new Set(Array.from(svg.querySelectorAll('*')).map((el) => el.tagName))) : []
-      const mm = (window as any).__mindMap
-      let mmData: unknown = null
-      try {
-        mmData = mm ? mm.getData(true) : 'no-instance'
-      } catch { mmData = 'getData-error' }
-      return {
-        hasSvg: !!svg,
-        svgInnerHTML: svg ? svg.innerHTML.slice(0, 800) : '(no svg)',
-        allTags,
-        mindMapExists: !!mm,
-        mindMapRootText: (mmData as any)?.root?.data?.text || '(no root)',
-      }
-    })
-    // eslint-disable-next-line no-console
-    console.log('[J8 SVG diag]', JSON.stringify(diag))
-
-    // 通过 DOM evaluate 取 SVG 内文本
-    const nodeTexts = await page.evaluate(() => {
-      const texts: string[] = []
-      document.querySelectorAll('g.smm-node').forEach((g) => {
-        const t = g.querySelector('text')
-        if (t) texts.push((t as SVGTextElement).textContent || '')
-      })
-      return texts
-    })
-    const allTexts = nodeTexts.length > 0 ? nodeTexts : await page.locator('g.smm-node text').allTextContents()
+    await page.waitForFunction(
+      () => document.querySelectorAll('g.smm-node').length > 0,
+      undefined,
+      { timeout: 15000, polling: 500 }
+    )
+    await page.waitForTimeout(400)
 
     // 验证根节点文本是 AI 接收的主题
+    const allTexts = await page.locator('g.smm-node text').allTextContents()
     expect(allTexts).toContain('前端组件库开发')
 
     // 验证 product-dev 模板结构（4 个一级分支）
@@ -135,9 +115,7 @@ export async function runJourney8(page: Page) {
     await page.click('button:has-text("导图")')
     await page.waitForTimeout(600)
 
-    const detailNode = page.locator('g.smm-node text').filter({ hasText: '需求分析' }).first()
-    await expect(detailNode).toBeVisible()
-    await detailNode.click()
+    await focusNodeByText(page, '需求分析')
     await page.waitForTimeout(400)
 
     // 通过浮动工具栏「查看详情」按钮打开 Sheet（比 dblclick 更稳定）
@@ -244,9 +222,7 @@ export async function runJourney8(page: Page) {
 
   // POMO-1: 从节点详情面板启动番茄钟
   try {
-    const pomoNode = page.locator('g.smm-node text').filter({ hasText: '需求分析' }).first()
-    await expect(pomoNode).toBeVisible()
-    await pomoNode.click()
+    await focusNodeByText(page, '需求分析')
     await page.waitForTimeout(400)
 
     const viewDetailBtn2 = page.locator('button:has-text("查看详情")').first()

@@ -76,12 +76,17 @@ export function NewProjectDialog() {
     if (!name.trim()) return
     setIsCreating(true)
 
+    // Fix: sort_order must fit PostgreSQL int (max ~2.1B); Date.now() overflows in 2026.
+    // Use existing max + 1, fallback to 0 for first project.
+    const allProjects = await db.projects.toArray()
+    const maxSort = allProjects.reduce((max, p) => Math.max(max, p.sort_order ?? 0), -1)
+
     const projectId = generateId()
     const project: LocalProject = {
       id: projectId,
       name: name.trim(),
       color: selectedColor,
-      sort_order: Date.now(),
+      sort_order: maxSort + 1,
       is_archived: false,
       version: 1,
       last_opened_at: new Date(),
@@ -113,7 +118,7 @@ export function NewProjectDialog() {
 
     // 短暂延迟，确保 IndexedDB put 事务已提交到索引，
     // 避免导航后 ProjectMindMapPage 查询时事务尚未可见 (竞态修复)。
-    await new Promise((r) => setTimeout(r, 300))
+    await new Promise((r) => setTimeout(r, 800))
 
     setIsCreating(false)
     handleClose()

@@ -133,6 +133,8 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
   // 进而触发 [initMindMap, projectId] effect 与 [layout] effect 竞争 (Bug 6 竞态)。
   const layoutRef = useRef<LayoutKey>(layout)
   layoutRef.current = layout
+  // 跳过 [layout] effect 的 mount 首次执行，避免 initMindMap 创建 instance 后立即被 destroy+reinit
+  const layoutEffectFirstRun = useRef(true)
 
   // Bug 6 续: useState lazy initializer 只在 mount 时跑一次,
   // 但 ProjectMindMapPage 异步加载 mindmap prop 在 mount 之后才到达。
@@ -378,6 +380,12 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
 
   // Re-init when layout changes
   useEffect(() => {
+    // 跳过 mount 首次执行：initMindMap effect 会先创建 instance，
+    // 这里若执行会立即 destroy+reinit 导致 DOM 不稳定 (J8 竞态修复)。
+    if (layoutEffectFirstRun.current) {
+      layoutEffectFirstRun.current = false
+      return
+    }
     console.log('[MindMapCanvas] [layout] effect — layout:', layout, '| mindMapRef:', !!mindMapRef.current, '| usingDefault:', usingDefaultDataRef.current)
     // Save layout preference to parent
     onViewStateChange?.({ layout })
@@ -391,8 +399,15 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       return
     }
     // layout 真正变化时：destroy 旧 instance 并用最新数据重建。
-    // 最新数据来自 latestTreeRef (data_change handler 缓存的用户编辑) 或 mindmap prop。
-    // 不再从 instance 调用 getData(true) + onDataChange：data_change handler 已负责保存到 DB。
+    // 先从当前 instance 获取最新数据（避免 latestTreeRef 被上次 re-init 清空后丢失用户编辑）。
+    // Bug: 连续两次 layout change 之间若无 data_change，latestTreeRef 为空，
+    // re-init 会回退到旧的 mindmap prop 数据，导致节点丢失 (J6 LAYOUT-2 回归)。
+    try {
+      const currentData = (mindMapRef.current as any).getData(true)
+      if (currentData) latestTreeRef.current = currentData
+    } catch {
+      // ignore: instance 可能尚未完全就绪
+    }
     mindMapRef.current.destroy()
     mindMapRef.current = null
     initMindMap()

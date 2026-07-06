@@ -20,7 +20,7 @@ const PROJECT_ARCHIVE = 'E2E-Archive-' + ts
 // helper: 创建一个默认项目并添加 N 个子节点 (用 Tab 创建同级)
 async function addChildNodes(page: Page, names: string[]) {
   // 先点 root
-  await page.locator('g.smm-node text').first().click()
+  await page.locator('g.smm-node').first().click({ force: true })
   await page.waitForTimeout(200)
   for (const name of names) {
     await page.keyboard.press('Tab')
@@ -29,7 +29,7 @@ async function addChildNodes(page: Page, names: string[]) {
     await page.keyboard.press('Enter')
     await page.waitForTimeout(400)
     // Tab 后再次添加需要点回 root (连续 Tab 会一直创建子节点)
-    await page.locator('g.smm-node text').first().click()
+    await page.locator('g.smm-node').first().click({ force: true })
     await page.waitForTimeout(200)
   }
 }
@@ -133,8 +133,12 @@ export async function runJourney6(page: Page) {
     if (!nodes.includes('待删节点')) throw new Error('初始未找到"待删节点"')
 
     // 选中"待删节点",按 Delete 删除
-    const targetNode = page.locator('g.smm-node text').filter({ hasText: '待删节点' }).first()
-    await targetNode.click()
+    const delEl = page.locator('text=待删节点').first()
+    await delEl.scrollIntoViewIfNeeded().catch(() => {})
+    const delBox = await delEl.boundingBox()
+    if (!delBox) throw new Error('Node not found: 待删节点')
+    await page.mouse.click(delBox.x + delBox.width / 2, delBox.y + delBox.height / 2)
+    await page.waitForTimeout(200)
     await page.waitForTimeout(300)
     await page.keyboard.press('Delete')
     await page.waitForTimeout(500)
@@ -157,7 +161,7 @@ export async function runJourney6(page: Page) {
     await createProject(page, PROJECT_TASKOFF)
 
     // 选 root 节点,按 T 标记为任务 (或点击"转为任务"按钮)
-    await page.locator('g.smm-node text').first().click()
+    await page.locator('g.smm-node').first().click({ force: true })
     await page.waitForTimeout(300)
     const toggleBtn = page.locator('button:has-text("转为任务")').first()
     if (await toggleBtn.isVisible().catch(() => false)) {
@@ -193,7 +197,7 @@ export async function runJourney6(page: Page) {
     // 回到导图,取消任务标记
     await page.locator('button:has-text("导图")').first().click()
     await page.waitForTimeout(800)
-    await page.locator('g.smm-node text').first().click()
+    await page.locator('g.smm-node').first().click({ force: true })
     await page.waitForTimeout(300)
     const offBtn = page.locator('button:has-text("已标记为任务")').first()
     if (await offBtn.isVisible().catch(() => false)) {

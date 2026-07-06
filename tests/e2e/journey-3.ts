@@ -26,7 +26,7 @@ async function addChildAndMaybeTask(page: Page, text: string, alsoMarkAsTask: bo
   let editWrap = page.locator('div.smm-node-edit-wrap')
   let retries = 0
   while (retries < 3) {
-    await page.locator('g.smm-node text').first().click()
+    await page.locator('g.smm-node').first().click({ force: true })
     await page.waitForTimeout(300)
     await page.keyboard.press('Tab')
     await page.waitForTimeout(500)

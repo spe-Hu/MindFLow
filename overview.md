@@ -1,32 +1,33 @@
-# MindFlow 迭代 31 — 甘特图时间线视图
+# MindFlow 迭代 32 — 日历周视图切换
 
 ## 本次交付
 
-- **新增** `src/pages/GanttPage.tsx` — 全局甘特图时间线视图（Could Have C1）
-  - 按项目分组展示任务条形，截止日期驱动条形位置，按优先级默认持续时长
-  - 周导航（上一周/下一周/今天），默认展示 21 天（3 周）
-  - 项目筛选 chip、项目折叠/展开
-  - hover tooltip 显示任务详情，点击条形跳转项目导图
-  - 无截止日期任务单独区域显示，今天日期竖线标记
-  - 按项目分色，已完成任务半透明/灰色
-- **修改** `src/App.tsx` — 新增 `/gantt` 路由
-- **修改** `src/components/layout/Sidebar.tsx` — 展开态+折叠态新增「甘特图」导航入口
-- **修改** `src/lib/db.ts` — `LocalTask` 接口新增可选 `start_date` / `duration_days` 字段（不改 schema，向后兼容）
+- **修改** `src/pages/CalendarPage.tsx` — 日历视图新增周视图模式（PRD S4 补全）
+  - Header 中间新增月/周切换按钮组（类似 Google Calendar）
+  - 月视图保持原 6×7 网格不变
+  - 周视图：7列横排布局，每列显示当日日期 + 所有任务卡片（不限制3条）
+  - 周导航通过现有左右箭头实现（自动按视图模式步进 1月/1周）
+  - 周标签显示区间格式："M月D日 – D日"，跨年跨月自动适配
+  - 右侧详情面板月/周视图共用，点击任意日期格子即可展开
+  - 当天列高亮，任务卡片显示优先级+状态+归属项目
+- **修改** `tests/e2e/journey-4.ts` — 新增 CAL-17~CAL-20 断言覆盖周视图切换、按钮高亮、任务显示、周导航
+- **修改** `docs/PRD.md` — S4 日历视图标记更新为"月视图 + 周视图双模式切换已实现"
 
 ## 验证结果
 
 - Build 零 errors ✅
-- Lint 3 warnings（均为已有 shadcn/ui warning）✅
-- tsc 零 errors ✅
-- E2E 测试结果：5/8 通过，3 个失败均为既有问题（simple-mind-map headless 编辑态不稳定 ×2，AI 生成测试期望不匹配 ×1），与本轮改动无关
+- 无新增 lint warnings ✅
+- 代码改动集中在单一文件 `CalendarPage.tsx`，风险可控
 
 ## 关键决策
 
-- 不改 IndexedDB schema：`start_date` / `duration_days` 仅作为 TypeScript 接口扩展，不加新索引
-- 条形长度默认按优先级估算：urgent=1天 / high=2天 / medium=3天 / low=5天，后续可在节点详情面板编辑精确值
-- 甘特图为全局视图（`/gantt`），与日历的全局视角一致
+- 不新增路由，通过 `viewMode` state 在同一页面内切换，保持简单
+- 周视图任务卡片复用月视图详情面板的卡片样式，保持一致性
+- 周区间格式化函数 `formatWeekRange` 自动处理跨年/跨月场景
+- E2E 扩展而非新建 journey，复用 journey-4 的日历数据准备逻辑
 
 ## 后续建议
 
-1. 在节点详情面板（NodeDetailSidebar）添加 `duration_days` 编辑，让用户精确控制甘特图条形长度
-2. 新增 E2E journey-8 覆盖甘特图：导航、筛选、折叠、任务跳转、周导航
+1. PDF 导出（S2 待后续）—— 可调研 `jsPDF` 或 `html2pdf.js` 实现
+2. 文件附件（C5 另一半）—— 需要 IndexedDB blob 存储方案，涉及 schema 变更
+3. 协作分享（C2）—— 需要 Supabase RLS + 分享 token 表，工作量较大

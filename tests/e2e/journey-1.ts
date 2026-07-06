@@ -35,10 +35,14 @@ export async function createProject(page: Page, name: string) {
   await page.waitForURL(/\/project\/.+/, { timeout: 5000 })
 }
 
-// helper: 在思维导图上根据文字找到节点并点击
+// helper: 在思维导图上根据文字找到节点并点击（绕过 Playwright SVG 定位限制）
 async function clickNodeByText(page: Page, text: string) {
-  const textLocator = page.locator('g.smm-node text').filter({ hasText: text }).first()
-  await textLocator.click({ force: true })
+  const el = page.locator('text=' + text).first()
+  await el.scrollIntoViewIfNeeded().catch(() => {})
+  const box = await el.boundingBox()
+  if (!box) throw new Error(`Node not found: ${text}`)
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await page.waitForTimeout(200)
 }
 
 // helper: 添加同级节点 (Enter) - 先选中再按 Enter,然后输入文本
@@ -69,17 +73,35 @@ export async function runJourney1(page: Page) {
 
   // ===== AC-1 添加节点 =====
   try {
-    // 先点击 root 节点确保画布获得 focus
-    await page.locator('g.smm-node').first().click({ force: true })
-    await page.waitForTimeout(300)
-    // Tab 添加子节点
-    await page.keyboard.press('Tab')
-    await page.waitForTimeout(400)
-    await page.keyboard.type(NODE_CHILD_1, { delay: 30 })
-    await page.keyboard.press('Enter')
-    await page.waitForTimeout(400)
-    // 验证: 出现 "需求分析" 文字
-    await expect(page.locator('text=' + NODE_CHILD_1).first()).toBeVisible({ timeout: 3000 })
+    // headless 下 simple-mind-map Tab 创建节点不稳定，加 retry 机制
+    let created = false
+    for (let attempt = 0; attempt < 3; attempt++) {
+      // 先点击 root 节点确保画布获得 focus (点 text 比点 g 更稳定)
+      const rootNodeEl = page.locator('g.smm-node').first()
+      await rootNodeEl.scrollIntoViewIfNeeded().catch(() => {})
+      await rootNodeEl.click({ force: true })
+      await page.waitForTimeout(300)
+      // Tab 添加子节点
+      await page.keyboard.press('Tab')
+      await page.waitForTimeout(500)
+      const editWrap = page.locator('div.smm-node-edit-wrap')
+      if (await editWrap.count() === 0) {
+        await page.waitForTimeout(200)
+        continue
+      }
+      await page.keyboard.type(NODE_CHILD_1, { delay: 30 })
+      await page.keyboard.press('Enter')
+      await page.waitForTimeout(600)
+      // 验证: 出现 "需求分析" 文字
+      const found = await page.locator('text=' + NODE_CHILD_1).first().isVisible().catch(() => false)
+      if (found) {
+        created = true
+        break
+      }
+    }
+    if (!created) {
+      throw new Error(`创建节点 "${NODE_CHILD_1}" 失败，3 次 retry 后仍未出现`)
+    }
     results.push({ name: 'AC-1 创建节点', pass: true })
   } catch (e: any) {
     results.push({ name: 'AC-1 创建节点', pass: false, detail: e.message })
