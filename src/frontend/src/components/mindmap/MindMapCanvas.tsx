@@ -11,8 +11,11 @@ import { NodeDetailSidebar } from './NodeDetailSidebar'
 import { toast } from 'sonner'
 
 // 注册插件
+// oxlint-disable-next-line react-hooks/rules-of-hooks
 MindMap.usePlugin(Export)
+// oxlint-disable-next-line react-hooks/rules-of-hooks
 MindMap.usePlugin(ExportPDF)
+// oxlint-disable-next-line react-hooks/rules-of-hooks
 MindMap.usePlugin(KeyboardNavigation)
 
 export interface MindMapCanvasRef {

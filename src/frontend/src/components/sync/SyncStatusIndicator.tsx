@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Cloud, CloudOff, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Cloud, CloudOff, Loader2, AlertCircle } from 'lucide-react'
 import { useSyncStore } from '@/stores/syncStore'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/lib/utils'
@@ -9,9 +9,6 @@ export function SyncStatusIndicator() {
   const user = useAuthStore((s) => s.user)
   const [tooltipOpen, setTooltipOpen] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
-
-  // 未登录时不显示
-  if (!user) return null
 
   // Click outside to close tooltip
   useEffect(() => {
@@ -23,6 +20,9 @@ export function SyncStatusIndicator() {
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
+
+  // 未登录时不显示
+  if (!user) return null
 
   const formatTime = (iso: string | null) => {
     if (!iso) return '尚未同步'

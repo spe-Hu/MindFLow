@@ -28,7 +28,7 @@ let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let lastSyncTimestamp = 0
 const MIN_SYNC_INTERVAL_MS = 30_000 // 30 秒最小间隔
 
-export const useSyncStore = create<SyncState>((set, get) => ({
+export const useSyncStore = create<SyncState>((set) => ({
   status: navigator.onLine ? 'idle' : 'offline',
   lastSyncTime: localStorage.getItem('mindflow-last-sync-time'),
   lastError: null,

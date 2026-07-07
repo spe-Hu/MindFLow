@@ -8,7 +8,6 @@ import { syncMindmapToCloud, syncProjectToCloud } from '@/lib/sync'
 import { OutlineEditor } from '@/components/outline/OutlineEditor'
 import type { LocalMindmap } from '@/lib/db'
 import type { MindMapNode } from '@/components/outline/OutlineEditor'
-import { toast } from 'sonner'
 
 export function OutlinePage() {
   const { id } = useParams<{ id: string }>()

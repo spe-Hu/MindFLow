@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useId } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { ChevronRight, ChevronDown, CircleDot, Check, Square } from 'lucide-react'
 
@@ -312,7 +312,7 @@ function OutlineRowItem({
 // Main Editor
 // ============================================================
 
-export function OutlineEditor({ treeData, onTreeChange, projectId }: OutlineEditorProps) {
+export function OutlineEditor({ treeData, onTreeChange }: OutlineEditorProps) {
   const [rows, setRows] = useState<OutlineRow[]>(() => treeToRows(treeData))
   const [focusedIndex, setFocusedIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
