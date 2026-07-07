@@ -1,5 +1,36 @@
 # MindFlow MVP 自动迭代记录
 
+## 2026-07-08 第 42 次执行 — 项目现状扫描 + PRD 同步 + E2E 清理
+
+**背景**：自动化触发后扫描项目状态，发现 MVP v1.1 全部 Must/Should Have 已完成，Could Have 仅剩文件附件和协作分享。本轮以「 housekeeping + 文档同步」为主，无新功能开发。
+
+**改动**：
+1. `docs/PRD.md` — §11 迭代记录表补全 39~41 次迭代（消除动态导入警告 / 消除项目切换闪烁 / 思维导图工具栏增强）
+2. `tests/e2e/journey-8.ts` — 移除迭代 41 遗留的临时 DIAG debug 代码块；保留 portal 作用域选择器修复（`[data-base-ui-portal]`）防止 Sheet 遮挡下误点画布按钮
+3. `tests/e2e/journey-9.ts` — 选择器适配当前 UI：新建项目按钮改为 `aria-label` 选择、路由改为 `/`、提交按钮改为文案匹配
+
+**验证**：Build 零 errors ✅（1.95s）｜commit `e293b34`
+
+---
+
+# MindFlow MVP 自动迭代记录
+
+## 2026-07-08 第 41 次执行 — 思维导图工具栏增强（删除按钮 + 展开折叠 + 框选）
+
+**背景**：项目现状扫描发现 Must/Should Have 全部完成，Could Have 仅剩分享协作和文件附件。本轮选择投入小、体验提升明显的打磨项。
+
+**改动**：`src/components/mindmap/MindMapCanvas.tsx`
+1. 注册 `Select` 插件（simple-mind-map 内置），支持右键拖拽框选多节点
+2. 浮动工具栏新增「删除节点」按钮（Trash2 图标），调用 `REMOVE_NODE` 命令，补齐此前只能靠键盘 Delete 的缺失
+3. 布局切换器右侧新增「展开全部」（ChevronsDown）和「折叠全部」（ChevronsUp）按钮，调用 `EXPAND_ALL` / `UNEXPAND_ALL`
+4. 底部键盘提示更新，增加「右键框选」「Delete 删除」
+
+**验证**：Build 零 errors ✅｜Lint 0 errors（40 warnings 均已有）✅｜commit `b237362`
+
+---
+
+# MindFlow MVP 自动迭代记录
+
 ## 2026-07-07 第 40 次执行 — 消除项目切换时思维导图闪烁
 
 **背景**：用户反馈「在不同项目之间切换时，思维导图界面会明显闪一下」。

@@ -1,6 +1,6 @@
 # MindFlow 项目长期记忆 (curated)
 
-> 截至 2026-07-06 第 31 次执行（含 22 次自动化 + 9 次 E2E 回归复测）
+> 截至 2026-07-08 第 42 次执行（含 23 次自动化 + 9 次 E2E 回归复测 + 10 次维护/文档同步）
 
 ## 项目状态
 - **PRD v1.1 已锁定**:`docs/PRD.md` + `docs/SPEC.md` + `docs/ARCHITECTURE.md` + `docs/UIUX.md`
@@ -28,9 +28,9 @@
    修复:模块级防抖 + 互斥锁 + 单事务原子化 + data_change 改同步触发
 
 ## 测试覆盖
-- 8 个 journey 文件 (`tests/e2e/journey-{1,2,3,4,5,6,7,8}.spec.ts`),共 77+ 个断言
+- 9 个 journey 文件 (`tests/e2e/journey-{1..9}.ts`),共 90+ 个断言
 - 使用 `npx playwright test tests/e2e/all-journeys.spec.ts --config tests/e2e/playwright.config.ts` 直接运行
-- 核心 AC 100% 覆盖 + 5 项 Should Have (归档/搜索/日历/周视图/导入) + 模板系统 (J7) + AI/详情/番茄钟/Dashboard (J8)
+- 核心 AC 100% 覆盖 + 5 项 Should Have (归档/搜索/日历/周视图/导入) + 模板系统 (J7) + AI/详情/番茄钟/Dashboard (J8) + 云端同步 (J9)
 - 连续 5+ 轮回归全部通过，E2E 稳定性已验收
 
 ## 踩坑记录 (重要)

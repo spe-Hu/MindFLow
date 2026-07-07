@@ -1,32 +1,78 @@
-# MindFlow 第 39 次自动迭代 — 消除 INEFFECTIVE_DYNAMIC_IMPORT 构建警告
+# MindFlow MVP 第 42 次迭代执行报告
 
-## 执行摘要
+## 执行时间
+2026-07-08
 
-本轮迭代对项目构建输出进行质量扫描，发现并修复了 3 个 `INEFFECTIVE_DYNAMIC_IMPORT` 警告，使构建输出达到 **零 errors + 零 warnings**。
+## 项目现状（扫描结果）
 
-## 发现的问题
+### ✅ 全部核心功能已交付
+| 类别 | 状态 |
+|------|------|
+| Must Have (M1~M15) | 全部完成 ✅ |
+| Should Have (S1~S6) | 全部完成 ✅ |
+| Could Have | 13/15 完成 ❌ 仅余 文件附件 / 协作分享 |
 
-| 文件 | 问题 | 根因 |
-|------|------|------|
-| `syncStore.ts` | `await import('./projectStore')` | projectStore 被 AppLayout/Sidebar/ViewHeader 等静态导入 |
-| `aiMindMap.ts` | `await import('./templates')` | templates 被 NewProjectDialog 静态导入 |
-| `NewProjectDialog.tsx` | `await import('@/lib/db')` | db 被 AppLayout/MindMapCanvas 等静态导入 |
+### 构建质量
+- `npx vite build` — **0 errors** ✅ (1.95s)
+- `npx tsc --noEmit` — **0 errors** ✅
+- `npx oxlint src` — **0 errors** ✅ (3 shadcn/ui false-positive warnings)
 
-## 修复内容
+### Git 状态
+- 3 个文件有未提交改动：journey-8.ts / journey-9.ts / PRD.md
+- 源码干净，无未提交的功能代码
 
-1. **syncStore.ts** — projectStore 改为顶部同步导入（无循环依赖风险：projectStore 不导入 syncStore）
-2. **aiMindMap.ts** — `applyTemplate`/`getTemplateById` 改为与 `createNode` 统一从顶部同步导入
-3. **NewProjectDialog.tsx** — `syncTasksFromTree` 改为同步导入（db 已在顶部静态导入）
+## 本次执行内容
 
-## 验证结果
+### 1. PRD §11 迭代记录同步
+PRD `docs/PRD.md` §11 迭代记录表长期缺失最近的 3 次迭代（39~41）。本轮补齐：
 
-- **Build**: ✅ 零 errors + 零 warnings（原 3 个 INEFFECTIVE_DYNAMIC_IMPORT + chunk size 提示）
-- **Lint**: ✅ 0 errors
-- **Commit**: `f8ac84a`
+- **迭代 39**（2026-07-07）：消除 INEFFECTIVE_DYNAMIC_IMPORT 构建警告
+- **迭代 40**（2026-07-07）：消除项目切换时思维导图闪烁（单例 instance 模式）
+- **迭代 41**（2026-07-08）：思维导图工具栏增强（删除按钮 + 展开折叠 + 框选）
 
-## 项目状态
+### 2. E2E 测试清理
 
-- MVP Must Have / Should Have: 全部完成 ✅
-- Could Have 已落地: 甘特图、AI 生成、番茄钟、节点详情、PWA、懒加载、拖拽排序、设计重构 ✅
-- Could Have 剩余: 文件附件（工作量较大，待后续评估）
-- Won't Have: 协作分享（明确不做）
+**journey-8.ts**
+- 保留：节点详情面板选择器改为 `[data-base-ui-portal]` 作用域，避免 Sheet 遮挡下误点画布浮动工具栏按钮
+- 移除：迭代 41 调试时遗留的临时 DIAG console.log 代码块（`page.evaluate`  dump db tasks + panel text）
+
+**journey-9.ts**
+- 新建项目按钮选择器从文案匹配改为 `aria-label` 属性匹配
+- 路由从 `/projects` 改为 `/`（HomePage 自动重定向逻辑变更）
+- 提交按钮从 `type="submit"` 改为文案「创建」匹配
+- `page.locator('main').innerText()` 增加 `.first()` 防止多 main 歧义
+
+### 3. 提交记录
+```
+commit e293b34
+docs: sync PRD §11 with iterations 37-41 + E2E selector fixes
+```
+
+## 功能缺口分析
+
+当前仅剩 **2 项 Could Have** 未实现：
+
+| 功能 | RICE 优先级 | 工作量 | 建议 |
+|------|------------|--------|------|
+| 文件附件 | P3 / Large | 需存储后端（Supabase Storage 或第三方） | MVP 阶段不建议投入 |
+| 协作分享 | P3 / XL | 需实时协作引擎（Yjs / CRDT）+ 权限模型 | 远期路线图 |
+
+**结论**：MVP v1.1 已全部完成，项目进入维护/打磨阶段。
+
+## 下一步建议
+
+1. **性能优化**（高价值/低工作量）
+   - `ProjectMindMapPage` chunk 851KB / 302KB gzip，simple-mind-map 内置插件可尝试动态导入进一步拆分
+   - 首屏已有懒加载，但主 chunk 仍包含大量 simple-mind-map 代码，可考虑按布局类型拆分
+
+2. **体验打磨**
+   - 移动端响应式适配（当前 PRD 明确仅桌面端，但可先做 1280px 以下的基础适配）
+   - 更多空状态/引导提示
+
+3. **工程化**
+   - E2E 持续集成（GitHub Actions 定时跑 all-journeys）
+   - 视觉回归测试（Playwright screenshot comparison）
+
+4. **运营准备**
+   - Cloudflare Pages 稳定部署 + 自定义域名
+   - 用户反馈渠道（建议接入 Sentry 错误监控）
