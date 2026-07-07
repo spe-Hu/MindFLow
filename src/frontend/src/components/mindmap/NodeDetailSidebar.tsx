@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { db } from '@/lib/db'
 import { safeLinkUrl } from '@/lib/sanitize'
-import type { LocalTask } from '@/lib/db'
+import type { LocalTask, AttachmentItem } from '@/lib/db'
+import { upsertTask } from '@/lib/db'
 import { usePomodoroStore } from '@/stores/pomodoroStore'
 import {
   FileText,
@@ -18,7 +19,18 @@ import {
   CalendarDays,
   AlignLeft,
   Settings,
+  Paperclip,
+  Trash2,
+  ImagePlus,
+  X,
 } from 'lucide-react'
+import {
+  uploadAttachment,
+  deleteAttachment,
+  formatFileSize,
+  isImage,
+} from '@/lib/attachments'
+import { toast } from 'sonner'
 
 // --------------------------------------------------
 // Simple inline markdown parser (MVP: no extra deps)
@@ -248,6 +260,10 @@ export function NodeDetailSidebar({
   const [noteEditMode, setNoteEditMode] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
   const [taskInfo, setTaskInfo] = useState<LocalTask | null>(null)
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const pomodoro = usePomodoroStore()
 
@@ -260,11 +276,13 @@ export function NodeDetailSidebar({
   useEffect(() => {
     if (!uid || !isTask) {
       setTaskInfo(null)
+      setAttachments([])
       return
     }
     const taskId = `${projectId}-${uid}`
     db.tasks.get(taskId).then((task) => {
       setTaskInfo(task || null)
+      setAttachments(task?.attachments || [])
     })
   }, [uid, isTask, projectId])
 
@@ -337,13 +355,101 @@ export function NodeDetailSidebar({
     [onUpdateNodeData]
   )
 
+  // ---------- Attachment handlers ----------
+
+  const handleUploadFile = useCallback(
+    async (file: File) => {
+      if (!isTask) {
+        toast.error('请先「转为任务」再添加附件')
+        return
+      }
+      if (!taskInfo) return
+
+      setUploading(true)
+      try {
+        const item = await uploadAttachment(taskInfo.id, file)
+        const newAttachments = [...attachments, item]
+        setAttachments(newAttachments)
+
+        // Update IndexedDB
+        await db.tasks.update(taskInfo.id, { attachments: newAttachments })
+        // Sync to cloud
+        const updatedTask = await db.tasks.get(taskInfo.id)
+        if (updatedTask) await upsertTask(updatedTask)
+
+        toast.success('附件上传成功')
+      } catch (e: any) {
+        toast.error(e.message || '附件上传失败')
+      } finally {
+        setUploading(false)
+      }
+    },
+    [isTask, taskInfo, attachments]
+  )
+
+  const handleDeleteAttachment = useCallback(
+    async (item: AttachmentItem) => {
+      if (!taskInfo) return
+      if (!confirm(`确定删除附件 "${item.name}" 吗？`)) return
+
+      try {
+        await deleteAttachment(item.path)
+        const newAttachments = attachments.filter((a) => a.id !== item.id)
+        setAttachments(newAttachments)
+
+        // Update IndexedDB
+        await db.tasks.update(taskInfo.id, { attachments: newAttachments })
+        // Sync to cloud
+        const updatedTask = await db.tasks.get(taskInfo.id)
+        if (updatedTask) await upsertTask(updatedTask)
+
+        toast.success('附件已删除')
+      } catch (e: any) {
+        toast.error(e.message || '删除失败')
+      }
+    },
+    [taskInfo, attachments]
+  )
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      if (activeTab !== 'attachments') return
+      const files = e.clipboardData.files
+      if (!files || files.length === 0) return
+
+      for (const file of Array.from(files)) {
+        if (isImage(file.type)) {
+          handleUploadFile(file)
+        }
+      }
+    },
+    [activeTab, handleUploadFile]
+  )
+
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files
+      if (!files) return
+      for (const file of Array.from(files)) {
+        handleUploadFile(file)
+      }
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    },
+    [handleUploadFile]
+  )
+
   const StatusIcon = STATUS_ICON[(nodeData?._status as string) || 'todo'] || CircleDot
   const statusColor = STATUS_COLOR[(nodeData?._status as string) || 'todo'] || 'text-text-muted'
   const priorityColor = PRIORITY_COLOR[(nodeData?._priority as string) || 'medium']
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[400px] sm:max-w-[400px] p-0 gap-0">
+      <SheetContent
+        side="right"
+        className="w-[400px] sm:max-w-[400px] p-0 gap-0"
+        onPaste={handlePaste}
+      >
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border-default shrink-0">
           <div className="flex items-start gap-2">
             <div className="mt-0.5 shrink-0">
@@ -371,6 +477,15 @@ export function NodeDetailSidebar({
             <TabsTrigger value="document">
               <FileText className="h-3.5 w-3.5 mr-1" />
               文档
+            </TabsTrigger>
+            <TabsTrigger value="attachments">
+              <Paperclip className="h-3.5 w-3.5 mr-1" />
+              附件
+              {attachments.length > 0 && (
+                <span className="ml-1 text-2xs bg-primary-subtle text-primary-600 px-1.5 rounded-full">
+                  {attachments.length}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -618,8 +733,134 @@ export function NodeDetailSidebar({
               </p>
             )}
           </TabsContent>
+
+          {/* ---------- Attachments Tab ---------- */}
+          <TabsContent
+            value="attachments"
+            className="flex-1 min-h-0 flex flex-col px-4 py-3"
+          >
+            {/* Upload area */}
+            <div
+              className={cn(
+                'shrink-0 rounded-lg border border-dashed border-border-default bg-bg-surface',
+                'p-4 text-center cursor-pointer transition-colors hover:border-border-hover hover:bg-bg-elevated',
+                uploading && 'opacity-60 pointer-events-none'
+              )}
+              onClick={() => {
+                if (!isTask) {
+                  toast.error('请先「转为任务」再添加附件')
+                  return
+                }
+                fileInputRef.current?.click()
+              }}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                multiple
+                onChange={handleFileSelect}
+                accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain"
+              />
+              <ImagePlus className="h-5 w-5 mx-auto text-text-muted mb-1" />
+              <p className="text-xs text-text-muted">
+                {uploading ? '上传中...' : isTask ? '点击选择文件 或 直接粘贴图片' : '请先转为任务'}
+              </p>
+              <p className="text-2xs text-text-muted mt-0.5">
+                支持 PNG, JPG, GIF, PDF, TXT · 最大 5MB · 粘贴图片使用 Ctrl+V
+              </p>
+            </div>
+
+            {/* Attachment list */}
+            <div className="flex-1 min-h-0 overflow-auto mt-3 space-y-2">
+              {attachments.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-text-muted gap-2 py-8">
+                  <Paperclip className="h-8 w-8 opacity-30" />
+                  <p className="text-xs">暂无附件</p>
+                </div>
+              ) : (
+                attachments.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 p-2 rounded-lg border border-border-default bg-bg-surface group"
+                  >
+                    {/* Thumbnail or icon */}
+                    {isImage(item.type) ? (
+                      <button
+                        onClick={() => setPreviewUrl(item.url)}
+                        className="shrink-0 w-12 h-12 rounded-md overflow-hidden bg-bg-elevated border border-border-default"
+                      >
+                        <img
+                          src={item.url}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </button>
+                    ) : (
+                      <div className="shrink-0 w-12 h-12 rounded-md bg-bg-elevated border border-border-default flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-text-muted" />
+                      </div>
+                    )}
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-text-primary truncate">
+                        {item.name}
+                      </p>
+                      <p className="text-2xs text-text-muted">
+                        {formatFileSize(item.size)}
+                      </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={item.name}
+                        className="h-7 w-7 flex items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-bg-elevated"
+                        title="下载"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                      </a>
+                      <button
+                        onClick={() => handleDeleteAttachment(item)}
+                        className="h-7 w-7 flex items-center justify-center rounded-md text-text-muted hover:text-status-error hover:bg-status-error/10"
+                        title="删除"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </SheetContent>
+
+      {/* Image preview overlay */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-8"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <button
+            className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            onClick={() => setPreviewUrl(null)}
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <img
+            src={previewUrl}
+            alt="Preview"
+            className="max-w-full max-h-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </Sheet>
   )
 }

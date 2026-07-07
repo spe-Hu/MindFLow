@@ -207,7 +207,7 @@ export interface Database {
         }
       }
 
-      // ---------- tasks (任务表) ----------
+        // ---------- tasks (任务表) ----------
       tasks: {
         Row: {
           id: string
@@ -221,6 +221,8 @@ export interface Database {
           due_date: string | null
           completed_at: string | null
           sort_order: number
+          pomodoro_count: number | null
+          attachments: Json | null
           created_at: string
           updated_at: string
         }
@@ -236,6 +238,8 @@ export interface Database {
           due_date?: string | null
           completed_at?: string | null
           sort_order?: number
+          pomodoro_count?: number | null
+          attachments?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -251,6 +255,8 @@ export interface Database {
           due_date?: string | null
           completed_at?: string | null
           sort_order?: number
+          pomodoro_count?: number | null
+          attachments?: Json | null
           created_at?: string
           updated_at?: string
         }

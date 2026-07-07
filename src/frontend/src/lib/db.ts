@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import { devLog } from '@/lib/devConsole'
 import {
   syncProjectToCloud,
   syncMindmapToCloud,
@@ -30,6 +31,16 @@ export interface LocalMindmap {
   version: number
 }
 
+export interface AttachmentItem {
+  id: string
+  name: string
+  size: number
+  type: string
+  url: string
+  path: string
+  createdAt: string
+}
+
 export interface LocalTask {
   id: string
   project_id: string
@@ -44,6 +55,7 @@ export interface LocalTask {
   sort_order: number
   user_id?: string
   pomodoro_count?: number
+  attachments?: AttachmentItem[]
 }
 
 export interface LocalSetting {
@@ -286,7 +298,7 @@ export async function cleanupOrphanedTasks(): Promise<number> {
   if (toDelete.length > 0) {
     await db.tasks.bulkDelete(toDelete)
     deletedCount = toDelete.length
-    console.log(`[MindFlow] cleanupOrphanedTasks: removed ${deletedCount} orphaned task(s)`)
+    devLog(`[MindFlow] cleanupOrphanedTasks: removed ${deletedCount} orphaned task(s)`)
   }
   return deletedCount
 }

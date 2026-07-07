@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { devLog } from '@/lib/devConsole'
 import { useAuthStore } from '@/stores/authStore'
 import type {
   LocalProject,
@@ -128,6 +129,7 @@ export async function syncTaskToCloud(task: LocalTask): Promise<void> {
     sort_order: task.sort_order,
     updated_at: new Date().toISOString(),
     pomodoro_count: task.pomodoro_count ?? null,
+    attachments: task.attachments ? (task.attachments as any) : null,
   }
 
   const { error } = await (supabase.from('tasks').upsert(payload as any, { onConflict: 'id' }) as any)

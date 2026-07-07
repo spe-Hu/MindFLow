@@ -238,7 +238,7 @@ MindFlow 是一个融合思维导图与任务管理的网页版个人项目推�
 | C2 | 分享协作 | ✅ 基础版已落地：Snapshot 模式只读分享链接。ViewHeader 新增分享按钮，点击后生成 token 并复制链接到剪贴板。`/share/:token` 公共路由无需登录即可访问，只读渲染思维导图（simple-mind-map readonly 模式），支持缩放控制。多人编辑 ❌ 待后续 |
 | C3 | AI 生成 | ✅ 已落地：本地语义规则引擎（产品/论文/活动/周计划模板骨架 + 通用 OKR 回退）+ 可选 OpenAI API，新建项目对话框「AI 生成」卡片，输入主题秒级生成个性化导图结构并自动同步任务 |
 | C4 | 番茄钟 | ✅ 已落地：全局浮动计时面板（SVG 环形进度条、focus/shortBreak/longBreak 模式、浏览器通知），任务卡片联动显示已完成次数，node_detail 面板支持一键开始专注 |
-| C5 | 附件/备注 | 长文本备注 ✅ 已落地（节点详情面板 Markdown 文档编辑器，支持标题/列表/粗体/斜体/代码/链接，零新依赖）；图片/文件附件 ❌ 待后续 |
+| C5 | 附件/备注 | 长文本备注 ✅ 已落地（节点详情面板 Markdown 文档编辑器，支持标题/列表/粗体/斜体/代码/链接，零新依赖）；图片/文件附件 ✅ 已落地（节点详情面板「附件」Tab，支持粘贴上传/文件选择，图片缩略图预览/放大查看，PDF/TXT 文件列表，Supabase Storage 存储） |
 | C6 | 项目归档 | ✅ 已实现（归档/恢复/永久删除，Settings 页面管理） |
 
 ### Won't Have（明确不做）
@@ -395,3 +395,5 @@ MindFlow 是一个融合思维导图与任务管理的网页版个人项目推�
 | 2026-07-07 | 消除项目切换时思维导图闪烁 | MindMapCanvas 的 useEffect 依赖 `[initMindMap, projectId]`，切换项目时 cleanup destroy() 旧实例 → reinit 新实例，画布先白后重建。改为单例 instance 模式：动态 prop 通过 ref 获取，initMindMap useCallback 空依赖只在 mount 创建一次，projectId/mindmap 变化时调用 `instance.setData()` 平滑更新，失败时回退 reinit | `src/components/mindmap/MindMapCanvas.tsx` |
 | 2026-07-08 | 思维导图工具栏增强（删除按钮 + 展开折叠 + 框选） | Must/Should Have 全部完成后投入体验打磨。注册 `Select` 插件支持右键拖拽框选多节点；浮动工具栏新增「删除节点」按钮（Trash2 图标）补齐此前只能靠键盘 Delete 的缺失；布局切换器右侧新增「展开全部」「折叠全部」按钮；底部键盘提示同步更新 | `src/components/mindmap/MindMapCanvas.tsx` |
 | 2026-07-08 | 只读分享链接（Snapshot 模式） | PRD Could Have C2 基础版落地。Snapshot 模式：分享时将项目名 + 导图 tree_data + 布局存入 `shared_links` 表（Supabase migration 005）。ViewHeader 新增 Share2 图标按钮，生成 token 并自动复制链接到剪贴板。`/share/:token` 公共路由，无需登录即可访问。SharePage 用 simple-mind-map `readonly: true` 渲染只读导图，自带缩放控制 + 复制链接 + MindFlow brand footer | `src/lib/share.ts`, `src/pages/SharePage.tsx`, `src/components/layout/ViewHeader.tsx`, `src/pages/ProjectMindMapPage.tsx`, `supabase/migrations/005_add_shared_links.sql` |
+| 2026-07-08 | 节点图片/文件附件上传 | PRD C5 补完：节点详情面板新增「附件」Tab，支持粘贴上传（Ctrl+V）和文件选择，图片显示缩略图（点击放大查看），PDF/TXT 显示文件图标。附件存储于 Supabase Storage `mindflow-attachments` bucket，元数据（id/name/size/type/url/path）存于 tasks 表 `attachments` JSONB 列。5MB 大小限制，支持 PNG/JPG/GIF/WEBP/PDF/TXT。附件随任务同步到云端 | `src/components/mindmap/NodeDetailSidebar.tsx`, `src/lib/attachments.ts`, `supabase/migrations/006_add_attachments.sql`, `src/types/supabase.ts`, `src/lib/db.ts`, `src/lib/sync.ts` |
+| 2026-07-08 | 生产环境日志清理 + React Error Boundary | (1) 新增 `src/lib/devConsole.ts` 封装 `devLog/devWarn/devError`，仅在 `import.meta.env.DEV` 时输出，被 Vite tree-shaking 优化。(2) 批量替换 MindMapCanvas/ProjectMindMapPage/sync/syncStore/db 中共 12 处高频 debug `console.log`，消除生产环境 console 污染。(3) 新建 `ErrorBoundary` 组件作为全局崩溃兜底，友好提示 + 刷新/返回首页按钮，包裹 App Router | `src/lib/devConsole.ts`, `src/components/ui/ErrorBoundary.tsx`, `src/App.tsx` |

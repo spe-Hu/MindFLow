@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { Loader2 } from 'lucide-react'
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 
 // Route-level code splitting: lazy-load non-core pages to reduce initial bundle.
 // Pages use NAMED exports, so map them to `default` for React.lazy.
@@ -47,8 +48,9 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Suspense fallback={<PageFallback />}>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<PageFallback />}>
         <Routes>
           {/* Public share page — no auth required */}
           <Route path="/share/:token" element={<SharePage />} />
@@ -77,7 +79,8 @@ function App() {
       </Suspense>
       {canAccessApp && <NewProjectDialog />}
       {canAccessApp && <PomodoroTimer />}
-    </BrowserRouter>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

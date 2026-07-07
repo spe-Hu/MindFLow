@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from './authStore'
 import { useProjectStore } from './projectStore'
 import { db } from '@/lib/db'
+import { devLog, devWarn } from '@/lib/devConsole'
 
 type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline'
 
@@ -101,9 +102,9 @@ export const useSyncStore = create<SyncState>((set) => ({
         set({ status: 'idle', lastSyncTime: isoNow, lastError: null })
 
         if (pushErrors.length > 0) {
-          console.warn('[Sync] Push completed with warnings:', pushErrors)
+          devWarn('[Sync] Push completed with warnings:', pushErrors)
         }
-        console.log(`[Sync] Auto-sync complete: ${projects.length} projects, ${mindmaps.length} mindmaps, ${tasks.length} tasks.`)
+        devLog(`[Sync] Auto-sync complete: ${projects.length} projects, ${mindmaps.length} mindmaps, ${tasks.length} tasks.`)
       } catch (err: any) {
         console.error('[Sync] Auto-sync failed:', err)
         set({ status: 'error', lastError: err.message || '同步失败' })
