@@ -235,7 +235,7 @@ MindFlow 是一个融合思维导图与任务管理的网页版个人项目推�
 | # | 需求 | 说明 |
 |---|------|------|
 | C1 | 甘特图 | ✅ 已落地：全局甘特图时间线视图（/gantt），按项目分组展示任务条形，截止日期驱动条形位置，按优先级默认持续时长，支持项目筛选、折叠/展开、周导航、hover tooltip、点击跳转项目 |
-| C2 | 分享协作 | 链接分享、多人编辑 |
+| C2 | 分享协作 | ✅ 基础版已落地：Snapshot 模式只读分享链接。ViewHeader 新增分享按钮，点击后生成 token 并复制链接到剪贴板。`/share/:token` 公共路由无需登录即可访问，只读渲染思维导图（simple-mind-map readonly 模式），支持缩放控制。多人编辑 ❌ 待后续 |
 | C3 | AI 生成 | ✅ 已落地：本地语义规则引擎（产品/论文/活动/周计划模板骨架 + 通用 OKR 回退）+ 可选 OpenAI API，新建项目对话框「AI 生成」卡片，输入主题秒级生成个性化导图结构并自动同步任务 |
 | C4 | 番茄钟 | ✅ 已落地：全局浮动计时面板（SVG 环形进度条、focus/shortBreak/longBreak 模式、浏览器通知），任务卡片联动显示已完成次数，node_detail 面板支持一键开始专注 |
 | C5 | 附件/备注 | 长文本备注 ✅ 已落地（节点详情面板 Markdown 文档编辑器，支持标题/列表/粗体/斜体/代码/链接，零新依赖）；图片/文件附件 ❌ 待后续 |
@@ -394,3 +394,4 @@ MindFlow 是一个融合思维导图与任务管理的网页版个人项目推�
 | 2026-07-07 | 消除 INEFFECTIVE_DYNAMIC_IMPORT 构建警告 | projectStore、templates、db 三个模块被 `await import()` 动态导入的同时也被大量组件静态导入，导致 Vite 无法拆分为独立 chunk。syncStore、aiMindMap、NewProjectDialog 中三处改为顶部同步导入。Build 零 errors + 零 warnings（原 3 个 INEFFECTIVE_DYNAMIC_IMPORT + chunk size 提示）✅ | `src/stores/syncStore.ts`, `src/lib/aiMindMap.ts`, `src/components/project/NewProjectDialog.tsx` |
 | 2026-07-07 | 消除项目切换时思维导图闪烁 | MindMapCanvas 的 useEffect 依赖 `[initMindMap, projectId]`，切换项目时 cleanup destroy() 旧实例 → reinit 新实例，画布先白后重建。改为单例 instance 模式：动态 prop 通过 ref 获取，initMindMap useCallback 空依赖只在 mount 创建一次，projectId/mindmap 变化时调用 `instance.setData()` 平滑更新，失败时回退 reinit | `src/components/mindmap/MindMapCanvas.tsx` |
 | 2026-07-08 | 思维导图工具栏增强（删除按钮 + 展开折叠 + 框选） | Must/Should Have 全部完成后投入体验打磨。注册 `Select` 插件支持右键拖拽框选多节点；浮动工具栏新增「删除节点」按钮（Trash2 图标）补齐此前只能靠键盘 Delete 的缺失；布局切换器右侧新增「展开全部」「折叠全部」按钮；底部键盘提示同步更新 | `src/components/mindmap/MindMapCanvas.tsx` |
+| 2026-07-08 | 只读分享链接（Snapshot 模式） | PRD Could Have C2 基础版落地。Snapshot 模式：分享时将项目名 + 导图 tree_data + 布局存入 `shared_links` 表（Supabase migration 005）。ViewHeader 新增 Share2 图标按钮，生成 token 并自动复制链接到剪贴板。`/share/:token` 公共路由，无需登录即可访问。SharePage 用 simple-mind-map `readonly: true` 渲染只读导图，自带缩放控制 + 复制链接 + MindFlow brand footer | `src/lib/share.ts`, `src/pages/SharePage.tsx`, `src/components/layout/ViewHeader.tsx`, `src/pages/ProjectMindMapPage.tsx`, `supabase/migrations/005_add_shared_links.sql` |

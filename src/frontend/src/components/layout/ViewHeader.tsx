@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Minus, Plus, Maximize2, Pencil } from 'lucide-react'
+import { Minus, Plus, Maximize2, Pencil, Share2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore, type ViewMode } from '@/stores/uiStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -10,6 +10,7 @@ interface ViewHeaderProps {
   onZoomIn?: () => void
   onZoomOut?: () => void
   onZoomReset?: () => void
+  onShare?: () => void
 }
 
 const VIEW_TABS: { key: ViewMode; label: string; pathSuffix: string }[] = [
@@ -25,6 +26,7 @@ export function ViewHeader({
   onZoomIn,
   onZoomOut,
   onZoomReset,
+  onShare,
 }: ViewHeaderProps) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -163,6 +165,16 @@ export function ViewHeader({
             >
               <Maximize2 className="h-3.5 w-3.5" />
             </button>
+            {onShare && (
+              <button
+                onClick={onShare}
+                className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-primary-subtle text-text-muted hover:text-primary-600 transition-colors"
+                aria-label="分享项目"
+                title="分享项目"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </>
         ) : (
           /* spacer to keep centering consistent */

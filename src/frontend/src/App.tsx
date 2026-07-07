@@ -22,6 +22,7 @@ const CalendarPage = React.lazy(() => import('@/pages/CalendarPage').then((m) =>
 const GanttPage = React.lazy(() => import('@/pages/GanttPage').then((m) => ({ default: m.GanttPage })))
 const SettingsPage = React.lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const AuthPage = React.lazy(() => import('@/pages/AuthPage').then((m) => ({ default: m.AuthPage })))
+const SharePage = React.lazy(() => import('@/pages/SharePage').then((m) => ({ default: m.SharePage })))
 
 function PageFallback() {
   return (
@@ -49,6 +50,8 @@ function App() {
     <BrowserRouter>
       <Suspense fallback={<PageFallback />}>
         <Routes>
+          {/* Public share page — no auth required */}
+          <Route path="/share/:token" element={<SharePage />} />
           {!canAccessApp ? (
             <>
               <Route path="/auth" element={<AuthPage />} />

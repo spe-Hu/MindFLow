@@ -8,7 +8,9 @@ import { useTaskStore } from '@/stores/taskStore'
 import { db } from '@/lib/db'
 import { syncMindmapToCloud, syncProjectToCloud } from '@/lib/sync'
 import { devLog } from '@/lib/devConsole'
+import { createSharedLink, buildShareUrl } from '@/lib/share'
 import type { LocalMindmap } from '@/lib/db'
+import { toast } from 'sonner'
 
 export function ProjectMindMapPage() {
   const { id } = useParams<{ id: string }>()
@@ -114,6 +116,27 @@ export function ProjectMindMapPage() {
     [id]
   )
 
+  const handleShare = useCallback(async () => {
+    if (!id || !mindmap) {
+      toast.error('思维导图尚未加载，请稍后再试')
+      return
+    }
+    try {
+      const project = await db.projects.get(id)
+      const projectName = project?.name || '未命名项目'
+      const layout = (mindmap.view_state?.layout as string) || 'logicalStructure'
+      const token = await createSharedLink(id, projectName, mindmap.tree_data as Record<string, unknown>, layout)
+      const url = buildShareUrl(token)
+      await navigator.clipboard.writeText(url)
+      toast.success('分享链接已生成并复制到剪贴板', {
+        description: url,
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '创建分享链接失败'
+      toast.error(msg)
+    }
+  }, [id, mindmap])
+
   if (!id) return null
 
   return (
@@ -124,6 +147,7 @@ export function ProjectMindMapPage() {
         onZoomIn={() => canvasRef.current?.zoomIn()}
         onZoomOut={() => canvasRef.current?.zoomOut()}
         onZoomReset={() => canvasRef.current?.resetZoom()}
+        onShare={handleShare}
       />
       <div className="flex-1 overflow-hidden">
         {loading ? (
