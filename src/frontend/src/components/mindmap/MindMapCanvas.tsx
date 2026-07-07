@@ -3,11 +3,12 @@ import MindMap from 'simple-mind-map'
 import KeyboardNavigation from 'simple-mind-map/src/plugins/KeyboardNavigation.js'
 import Export from 'simple-mind-map/src/plugins/Export.js'
 import ExportPDF from 'simple-mind-map/src/plugins/ExportPDF.js'
+import Select from 'simple-mind-map/src/plugins/Select.js'
 import type { LocalMindmap } from '@/lib/db'
 import { syncTasksFromTree } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { devLog, devError } from '@/lib/devConsole'
-import { CheckSquare, Square, CalendarDays, LayoutTemplate, Network, GitBranch, X, PanelRight, Download, Image, FileText, FileCode, FileInput } from 'lucide-react'
+import { CheckSquare, Square, CalendarDays, LayoutTemplate, Network, GitBranch, X, PanelRight, Download, Image, FileText, FileCode, FileInput, Trash2, ChevronsDown, ChevronsUp } from 'lucide-react'
 import { NodeDetailSidebar } from './NodeDetailSidebar'
 import { toast } from 'sonner'
 
@@ -18,6 +19,8 @@ MindMap.usePlugin(Export)
 MindMap.usePlugin(ExportPDF)
 // oxlint-disable-next-line react-hooks/rules-of-hooks
 MindMap.usePlugin(KeyboardNavigation)
+// oxlint-disable-next-line react-hooks/rules-of-hooks
+MindMap.usePlugin(Select)
 
 export interface MindMapCanvasRef {
   zoomIn: () => void
@@ -534,6 +537,13 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     }))
   }, [])
 
+  const handleDeleteNode = useCallback(() => {
+    const instance = mindMapRef.current
+    if (!instance) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(instance as any).execCommand('REMOVE_NODE')
+  }, [])
+
   const isTask = Boolean(activeNodeData?._isTask)
 
   const handleUpdateNodeData = useCallback((updates: Record<string, unknown>) => {
@@ -613,6 +623,13 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
                 转为任务
               </>
             )}
+          </button>
+          <button
+            onClick={handleDeleteNode}
+            className="flex items-center gap-2 h-8 px-3 rounded-md text-xs font-medium transition-colors whitespace-nowrap text-status-error hover:bg-status-error/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            删除节点
           </button>
           {isTask && (
             <>
@@ -708,6 +725,27 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
           )
         })}
         <div className="w-px h-4 bg-border-default mx-0.5" />
+        <button
+          onClick={() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(mindMapRef.current as any)?.execCommand('EXPAND_ALL')
+          }}
+          className="flex items-center gap-1.5 h-7 px-2 rounded-md text-xs font-medium transition-colors text-text-muted hover:text-text-primary hover:bg-bg-elevated"
+          title="展开全部"
+        >
+          <ChevronsDown className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(mindMapRef.current as any)?.execCommand('UNEXPAND_ALL')
+          }}
+          className="flex items-center gap-1.5 h-7 px-2 rounded-md text-xs font-medium transition-colors text-text-muted hover:text-text-primary hover:bg-bg-elevated"
+          title="折叠全部"
+        >
+          <ChevronsUp className="h-3.5 w-3.5" />
+        </button>
+        <div className="w-px h-4 bg-border-default mx-0.5" />
         <div className="relative">
           <button
             onClick={() => setExportOpen(v => !v)}
@@ -768,6 +806,10 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         <span className="text-[10px] text-text-muted">↑↓←→ 切换节点</span>
         <span className="text-border-default">|</span>
         <span className="text-[10px] text-text-muted">滚轮缩放</span>
+        <span className="text-border-default">|</span>
+        <span className="text-[10px] text-text-muted">右键框选</span>
+        <span className="text-border-default">|</span>
+        <span className="text-[10px] text-text-muted">Delete 删除</span>
       </div>
 
       {/* Node Detail Sidebar */}
