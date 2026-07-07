@@ -1,5 +1,22 @@
 # MindFlow MVP 自动迭代记录
 
+## 2026-07-07 第 40 次执行 — 消除项目切换时思维导图闪烁
+
+**背景**：用户反馈「在不同项目之间切换时，思维导图界面会明显闪一下」。
+
+**根因**：MindMapCanvas 的 useEffect 依赖 `[initMindMap, projectId]`，切换项目时 cleanup `destroy()` 旧实例 → reinit `new MindMap()` 新实例，画布先白后重建。
+
+**改动**：`src/components/mindmap/MindMapCanvas.tsx` — 单例 instance 模式改造：
+1. 所有动态 prop 通过 ref 获取（onDataChangeRef/highlightNodeUidRef/mindmapRef/onViewStateChangeRef/onZoomChangeRef）
+2. `initMindMap` useCallback 依赖清空（`[]`），只在 mount 时创建一次 instance
+3. mount useEffect 空依赖 + 新增 data update effect：projectId/mindmap 变化时调用 `instance.setData()` 平滑更新，失败时回退 reinit
+4. 新增 highlightNodeUid effect：单独处理全局导航高亮
+5. layout effect 保持不变，继续使用 `setLayout()`
+
+**验证**：Build 零 errors + 零 warnings ✅｜Cloudflare Pages 部署 → https://573982e3.mindflow-app.pages.dev ✅｜GitHub push → master ✅
+
+---
+
 ## 2026-07-07 第 39 次执行 — 消除 INEFFECTIVE_DYNAMIC_IMPORT 构建警告
 
 **背景**：Build 输出长期存在 3 个 `INEFFECTIVE_DYNAMIC_IMPORT` 警告，影响构建优化效果和代码整洁度。
