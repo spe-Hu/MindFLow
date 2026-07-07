@@ -13,6 +13,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import type { LocalProject } from '@/lib/db'
+import { syncProjectToCloud } from '@/lib/sync'
 
 const PROJECT_COLORS: Record<string, string> = {
   indigo: 'bg-project-indigo',
@@ -64,7 +65,7 @@ function UserAvatarMini() {
 export function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { projects, activeProjectId, setActiveProject, updateProject, removeProject, archiveProject, recentProjects } = useProjectStore()
+  const { projects, activeProjectId, setActiveProject, updateProject, removeProject, archiveProject, recentProjects, reorderProjects } = useProjectStore()
   const { sidebarCollapsed, setNewProjectDialogOpen } = useUIStore()
 
   const isDashboard = location.pathname === '/dashboard'
@@ -87,6 +88,10 @@ export function Sidebar() {
 
   // Archive confirmation state
   const [archiveProjectId, setArchiveProjectId] = useState<string | null>(null)
+
+  // Drag-and-drop state
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -164,6 +169,66 @@ export function Sidebar() {
     await archiveProject(actingId)
     setArchiveProjectId(null)
     navigateAwayIfNeeded(actingId)
+  }
+
+  // Drag-and-drop handlers
+  const handleDragStart = (e: React.DragEvent, projectId: string) => {
+    setDraggedId(projectId)
+    e.dataTransfer.effectAllowed = 'move'
+    // Custom drag image optional; browser default is fine
+  }
+
+  const handleDragOver = (e: React.DragEvent, projectId: string) => {
+    e.preventDefault()
+    if (projectId !== draggedId) {
+      setDragOverId(projectId)
+    }
+  }
+
+  const handleDragLeave = () => {
+    setDragOverId(null)
+  }
+
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null)
+      setDragOverId(null)
+      return
+    }
+
+    const current = useProjectStore.getState().projects
+    const fromIndex = current.findIndex((p) => p.id === draggedId)
+    const toIndex = current.findIndex((p) => p.id === targetId)
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedId(null)
+      setDragOverId(null)
+      return
+    }
+
+    const reordered = [...current]
+    const [moved] = reordered.splice(fromIndex, 1)
+    reordered.splice(toIndex, 0, moved)
+    const orderedIds = reordered.map((p) => p.id)
+
+    await reorderProjects(orderedIds)
+
+    // Sync each updated project to cloud (best effort)
+    await Promise.all(
+      reordered.map((p, idx) =>
+        syncProjectToCloud({ ...p, sort_order: idx }).catch(() => {
+          // ignore offline errors
+        })
+      )
+    )
+
+    setDraggedId(null)
+    setDragOverId(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedId(null)
+    setDragOverId(null)
   }
 
   if (sidebarCollapsed) {
@@ -356,11 +421,20 @@ export function Sidebar() {
             {projects.map((p) => (
               <div
                 key={p.id}
+                draggable={renamingId !== p.id}
+                onDragStart={(e) => handleDragStart(e, p.id)}
+                onDragOver={(e) => handleDragOver(e, p.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, p.id)}
+                onDragEnd={handleDragEnd}
                 className={cn(
                   'group relative w-full flex items-center gap-2.5 h-8 px-2 rounded-md text-sm transition-colors duration-fast',
+                  renamingId !== p.id && 'cursor-grab active:cursor-grabbing',
                   activeProjectId === p.id
                     ? 'bg-bg-elevated text-text-primary'
-                    : 'text-text-secondary hover:bg-bg-elevated hover:text-text-primary'
+                    : 'text-text-secondary hover:bg-bg-elevated hover:text-text-primary',
+                  draggedId === p.id && 'opacity-40',
+                  dragOverId === p.id && draggedId !== p.id && 'ring-2 ring-primary-600/50 bg-primary-subtle'
                 )}
               >
                 <button
