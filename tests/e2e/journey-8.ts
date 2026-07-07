@@ -139,17 +139,19 @@ export async function runJourney8(page: Page) {
     if (await propertiesTab.isVisible()) await propertiesTab.click()
     await page.waitForTimeout(200)
 
-    const toggleBtn = page.locator('button:has-text("转为任务")').first()
+    // 节点详情 Sheet 内才有「转为任务」开关；画布浮动工具栏也存在同名按钮（位于 Sheet 之下），
+    // 必须用 [data-base-ui-portal] 限定到详情面板，否则 Playwright 会点到被 Sheet 遮挡的画布按钮。
+    const toggleBtn = page.locator('[data-base-ui-portal] button:has-text("转为任务")').first()
     await expect(toggleBtn).toBeVisible()
     await toggleBtn.click()
     await page.waitForTimeout(400)
 
     // 点击后按钮应变为「已标记为任务」
-    await expect(page.locator('button:has-text("已标记为任务")').first()).toBeVisible()
+    await expect(page.locator('[data-base-ui-portal] button:has-text("已标记为任务")').first()).toBeVisible()
 
     // 设置优先级为「高」
-    const prioritySection = page.locator('label:has-text("优先级")').first().locator('xpath=../../div[2]')
-    const highBtn = prioritySection.locator('button', { hasText: /^高$/ }).first()
+    // 优先级按钮组位于含「优先级」label 的同一字段容器内，直接按文案在 Sheet 内定位即可。
+    const highBtn = page.locator('[data-base-ui-portal] button', { hasText: /^高$/ }).first()
     await expect(highBtn).toBeVisible()
     await highBtn.click()
     await page.waitForTimeout(200)
@@ -165,7 +167,7 @@ export async function runJourney8(page: Page) {
 
   // DETAIL-3: 设置截止日期
   try {
-    const dateInput = page.locator('input[type="date"]').first()
+    const dateInput = page.locator('[data-base-ui-portal] input[type="date"]').first()
     await expect(dateInput).toBeVisible()
 
     const futureDate = new Date()

@@ -180,25 +180,25 @@ async function createLocalData(page: Page) {
   await page.waitForTimeout(1500)
 
   // 创建项目
-  await page.goto(BASE_URL + '/projects')
+  // 注意：侧边栏「新建项目」是图标按钮，仅有 aria-label="新建项目"（无可见文字），需用属性选择器。
+  // 路由 /projects 不存在（会重定向到 /），直接使用 / 即可。
+  await page.goto(BASE_URL + '/')
   await page.waitForTimeout(1500)
-  await page.locator('button:has-text("新建项目")').first().click()
+  await page.locator('button[aria-label="新建项目"]').first().click()
   await page.waitForTimeout(400)
   const dialog = page.locator('div[role="dialog"]').first()
-  const input = dialog.locator('input[type="text"]').first()
+  const input = dialog.locator('#project-name')
   await input.fill('同步测试项目')
-  await dialog.locator('button[type="submit"]').click()
+  // dialog 的提交按钮是 type="button"（文案「创建」），由 onClick={handleCreate} 触发，不是 type="submit"
+  await dialog.locator('button:has-text("创建")').first().click()
   await page.waitForTimeout(1500)
 
   // 进入 mindmap 创建节点并转为任务
-  await page.goto(BASE_URL + '/app')
-  await page.waitForTimeout(2000)
-
-  const projectLink = page.locator('text=同步测试项目').first()
-  await expect(projectLink).toBeVisible({ timeout: 5000 })
-  await projectLink.click()
-  await page.waitForTimeout(2000)
-  await page.waitForSelector('svg.smm-container', { timeout: 10000 })
+  // 新建项目 dialog 提交后会自动跳转到该项目导图 (/project/:id)；
+  // HomePage 在存在项目时也会自动重定向到首个项目导图，无需手动点击项目名。
+  await page.waitForURL(/\/project\//, { timeout: 10000 })
+  await page.waitForSelector('g.smm-node', { timeout: 10000 })
+  await page.waitForTimeout(1000)
 
   // 创建子节点
   await page.locator('g.smm-node').first().click({ force: true })
@@ -234,7 +234,7 @@ export async function runJourney9(page: Page): Promise<JourneyResult[]> {
     await page.locator('nav button:has-text("云端同步")').first().click()
     await page.waitForTimeout(600)
 
-    const pageText = await page.locator('main').innerText()
+    const pageText = await page.locator('main').first().innerText()
     if (!pageText.includes('未登录')) {
       throw new Error('未登录时应显示"未登录"状态')
     }
@@ -329,7 +329,7 @@ export async function runJourney9(page: Page): Promise<JourneyResult[]> {
     await page.waitForTimeout(600)
 
     // 验证已登录状态
-    const pageText = await page.locator('main').innerText()
+    const pageText = await page.locator('main').first().innerText()
     if (!pageText.includes('已登录') && !pageText.includes('Test User')) {
       throw new Error('Settings 页面未显示已登录状态')
     }
@@ -436,7 +436,7 @@ export async function runJourney9(page: Page): Promise<JourneyResult[]> {
     await page.locator('nav button:has-text("云端同步")').first().click()
     await page.waitForTimeout(600)
 
-    const pageText = await page.locator('main').innerText()
+    const pageText = await page.locator('main').first().innerText()
     if (!pageText.includes('网络在线')) {
       throw new Error('在线时应显示"网络在线"状态')
     }
