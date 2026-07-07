@@ -120,6 +120,19 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
   // 直接 destroy + init 会用旧数据重建 → 子节点全部丢失。
   // 这里缓存 getData() 拿到的最新数据,init 时优先用 ref 里的最新数据。
   const latestTreeRef = useRef<Record<string, unknown> | null>(null)
+  // Refs for dynamic props so initMindMap can have stable deps (no destroy+reinit flash).
+  const onDataChangeRef = useRef(onDataChange)
+  onDataChangeRef.current = onDataChange
+  const onViewStateChangeRef = useRef(onViewStateChange)
+  onViewStateChangeRef.current = onViewStateChange
+  const highlightNodeUidRef = useRef(highlightNodeUid)
+  highlightNodeUidRef.current = highlightNodeUid
+  const mindmapRef = useRef(mindmap)
+  mindmapRef.current = mindmap
+  const onZoomChangeRef = useRef(onZoomChange)
+  onZoomChangeRef.current = onZoomChange
+  const prevProjectIdRef = useRef(projectId)
+
   const [activeNodeData, setActiveNodeData] = useState<Record<string, unknown> | null>(null)
   const [activeNodePos, setActiveNodePos] = useState<{ x: number; y: number } | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
@@ -162,13 +175,13 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(mindMapRef.current as any)?.view?.enlarge()
       const scale = Math.round(((mindMapRef.current as any)?.view?.scale || 1) * 100)
-      onZoomChange?.(scale)
+      onZoomChangeRef.current?.(scale)
     },
     zoomOut: () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(mindMapRef.current as any)?.view?.narrow()
       const scale = Math.round(((mindMapRef.current as any)?.view?.scale || 1) * 100)
-      onZoomChange?.(scale)
+      onZoomChangeRef.current?.(scale)
     },
     resetZoom: () => {
       try {
@@ -178,13 +191,13 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         // ignore: View.fit 可能因 rbox 暂不可用失败
       }
       const scale = Math.round(((mindMapRef.current as any)?.view?.scale || 1) * 100)
-      onZoomChange?.(scale)
+      onZoomChangeRef.current?.(scale)
     },
     getZoom: () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return Math.round(((mindMapRef.current as any)?.view?.scale || 1) * 100)
     },
-  }), [onZoomChange])
+  }), [onZoomChangeRef])
 
   const initMindMap = useCallback(() => {
     if (!containerRef.current) return
@@ -198,14 +211,15 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
 
     // 优先使用缓存的最新数据 (data_change handler 中写入的用户编辑),
     // 否则回退到 prop 中的初始数据。用完后立即清空,避免污染下次重建。
-    const data = latestTreeRef.current ?? buildMindMapData(mindmap)
+    const currentMindmap = mindmapRef.current
+    const data = latestTreeRef.current ?? buildMindMapData(currentMindmap)
     const rootText = ((data as any)?.data?.text) || '(no text)'
-    const hasTreeData = !!mindmap?.tree_data
+    const hasTreeData = !!currentMindmap?.tree_data
     console.log('[MindMapCanvas] initMindMap called — mindmap?.tree_data:', hasTreeData, '| rootText:', rootText, '| layout:', layoutRef.current)
     latestTreeRef.current = null
     // 标记当前 instance 是否使用了默认数据初始化
     // (当 mindmap prop 尚未到达时 buildMindMapData 会返回 DEFAULT_TREE_DATA)
-    usingDefaultDataRef.current = !mindmap?.tree_data
+    usingDefaultDataRef.current = !currentMindmap?.tree_data
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const instance = new MindMap({
@@ -250,7 +264,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       }
       // 缓存最新数据到 latestTreeRef,供 layout 变化重建 instance 时使用
       latestTreeRef.current = newData
-      onDataChange?.(newData)
+      onDataChangeRef.current?.(newData)
       // 改为防抖同步,避免快速 data_change 竞态导致 task 记录丢失 (Bug 5)
       scheduleTasksSync(projectIdRef.current, newData)
     })
@@ -341,11 +355,12 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       setTimeout(safeFit, 300)
     })
 
-    // Handle highlight node from global task navigation
-    if (highlightNodeUid) {
+    // Handle highlight node from global task navigation (init-time only)
+    const huid = highlightNodeUidRef.current
+    if (huid) {
       setTimeout(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(instance as any).execCommand('GO_TARGET_NODE', highlightNodeUid, (targetNode: unknown) => {
+        ;(instance as any).execCommand('GO_TARGET_NODE', huid, (targetNode: unknown) => {
           if (targetNode) {
             // Add a visual flash/highlight effect
             const el = (targetNode as any)?.group?.node
@@ -360,18 +375,81 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         })
       }, 400)
     }
-  }, [mindmap, onDataChange, highlightNodeUid])
+  }, [])
 
+  // ---- Mount-only: create the single MindMap instance ----
   useEffect(() => {
     initMindMap()
+    // cleanup: only destroy on component unmount
     return () => {
       if (mindMapRef.current) {
         mindMapRef.current.destroy()
         mindMapRef.current = null
       }
-      // cleanup is void
     }
-  }, [initMindMap, projectId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ---- Data update: when mindmap or projectId changes, use setData (no flash) ----
+  useEffect(() => {
+    if (!mindMapRef.current) return
+    const isProjectSwitch = prevProjectIdRef.current !== projectId
+    if (!isProjectSwitch && mindmapRef.current === mindmap) return
+    prevProjectIdRef.current = projectId
+
+    const instance = mindMapRef.current
+    const data = buildMindMapData(mindmap)
+    const rootText = ((data as any)?.data?.text) || '(no text)'
+    console.log('[MindMapCanvas] data update — projectId:', projectId, '| rootText:', rootText, '| isProjectSwitch:', isProjectSwitch)
+
+    if (mindmap?.tree_data) {
+      // Reset flags before setData so the auto data_change doesn't skip
+      initialChangeRef.current = true
+      usingDefaultDataRef.current = false
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(instance as any).setData(data)
+      } catch (e) {
+        console.error('[MindMapCanvas] setData failed, fallback to reinit:', e)
+        latestTreeRef.current = data
+        mindMapRef.current.destroy()
+        mindMapRef.current = null
+        initMindMap()
+        return
+      }
+    }
+
+    // Restore layout preference when switching projects
+    if (isProjectSwitch) {
+      const saved = mindmap?.view_state?.layout as LayoutKey | undefined
+      if (saved && AVAILABLE_LAYOUTS.find(l => l.key === saved) && saved !== layout) {
+        setLayout(saved)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mindmap, projectId])
+
+  // ---- Highlight node from global task navigation ----
+  useEffect(() => {
+    if (!mindMapRef.current || !highlightNodeUid) return
+    const instance = mindMapRef.current
+    const huid = highlightNodeUid
+    setTimeout(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(instance as any).execCommand('GO_TARGET_NODE', huid, (targetNode: unknown) => {
+        if (targetNode) {
+          const el = (targetNode as any)?.group?.node
+          if (el && el.style) {
+            el.style.transition = 'filter 300ms ease'
+            el.style.filter = 'drop-shadow(0 0 8px rgba(79, 70, 229, 0.6))'
+            setTimeout(() => {
+              el.style.filter = ''
+            }, 1200)
+          }
+        }
+      })
+    }, 400)
+  }, [highlightNodeUid])
 
   // Close export menu on click outside
   useEffect(() => {
@@ -394,7 +472,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       return
     }
     // Save layout preference to parent
-    onViewStateChange?.({ layout })
+    onViewStateChangeRef.current?.({ layout })
     if (!mindMapRef.current) return
     // 如果当前 instance 是用 DEFAULT_TREE_DATA 初始化的（mindmap prop 尚未到达），
     // 直接 destroy + reinit，不需要从 instance 拿数据（数据是默认的）。
