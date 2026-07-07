@@ -1,5 +1,24 @@
 # MindFlow MVP 自动迭代记录
 
+## 2026-07-07 第 38 次执行 — Lint 错误清理 + 运行时 bug 修复
+
+**背景**：项目扫描发现 4 个 lint errors（含 1 个运行时崩溃风险 + 1 个 React hooks 规则违例）和 28 个 warnings。
+
+**改动**：
+1. `src/frontend/src/pages/ProjectBoardPage.tsx` — 补全缺失的 `EmptyState` 导入（看板列为空时运行崩溃）
+2. `src/frontend/src/components/sync/SyncStatusIndicator.tsx` — 将 `useEffect` 移到 `if (!user) return null` 之前，修复 React hooks 规则违例
+3. `src/frontend/src/components/mindmap/MindMapCanvas.tsx` — 为 `MindMap.usePlugin()` 添加 oxlint ignore 注释（false positive，非 React Hook）
+4. `src/frontend/src/components/outline/OutlineEditor.tsx` — 移除未使用的 `useId` 导入
+5. `src/frontend/src/pages/OutlinePage.tsx` — 移除未使用的 `toast` 导入
+6. `src/frontend/src/stores/syncStore.ts` — 移除未使用的 `get` 参数
+7. `docs/PRD.md` — §11 迭代记录补全
+
+**验证**：Build 零 errors ✅｜Lint 0 errors ✅（从 4 errors + 28 warnings 降至 0 errors + 22 warnings）
+
+---
+
+# MindFlow MVP 自动迭代记录
+
 ## 2026-07-07 第 37 次执行 — Sidebar 项目列表拖拽排序
 
 **背景**：用户管理多个项目时，侧边栏项目列表始终按 `sort_order` 排序，但用户无法手动调整项目顺序，这是常见的高频交互痛点。
@@ -672,3 +691,6 @@
 **遗留**:
 - Should Have 剩余: 云端同步 (Supabase 多端数据拉取/合并)
 - Could Have: 甘特图、协作分享、AI 生成、番茄钟
+
+## 2026-07-07 推送 GitHub（环境无外网，未完成）
+用户要求推送到 spe-Hu/MindFLow。本地准备已完成：配置 origin remote、补全 .gitignore、从版本控制移除 node_modules/test-results/playwright-report、提交所有遗留源码改动。沙箱环境无外网出口，push 失败。待用户在联网机器执行 `git push -u origin master`。

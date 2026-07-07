@@ -6,7 +6,7 @@
  * - 外部 LLM API（可选）：在 Settings 中配置 API Key，调用 OpenAI 兼容接口
  */
 
-import { createNode } from './templates'
+import { createNode, applyTemplate, getTemplateById } from './templates'
 import { db } from './db'
 
 export interface AIGenerateOptions {
@@ -260,7 +260,6 @@ export async function generateMindMapByAI(
   const type = detectThemeType(theme)
 
   if (type !== 'generic') {
-    const { applyTemplate, getTemplateById } = await import('./templates')
     const tmpl = getTemplateById(type)
     if (tmpl) {
       const tree = applyTemplate(type, theme)

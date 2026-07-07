@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/uiStore'
 import { useProjectStore } from '@/stores/projectStore'
-import { db } from '@/lib/db'
+import { db, syncTasksFromTree } from '@/lib/db'
 import type { LocalProject } from '@/lib/db'
 import { PROJECT_TEMPLATES, applyTemplate, type MindMapTemplate } from '@/lib/templates'
 import { generateMindMapByAI } from '@/lib/aiMindMap'
@@ -113,7 +113,6 @@ export function NewProjectDialog() {
     })
 
     // Sync tasks from tree if template has task nodes
-    const { syncTasksFromTree } = await import('@/lib/db')
     await syncTasksFromTree(projectId, treeData)
 
     // 短暂延迟，确保 IndexedDB put 事务已提交到索引，

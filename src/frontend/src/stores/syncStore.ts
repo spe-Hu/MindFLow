@@ -6,6 +6,7 @@ import {
   fetchAllFromCloud,
 } from '@/lib/sync'
 import { useAuthStore } from './authStore'
+import { useProjectStore } from './projectStore'
 import { db } from '@/lib/db'
 
 type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline'
@@ -93,7 +94,6 @@ export const useSyncStore = create<SyncState>((set) => ({
         })
 
         // 刷新 UI（通过 projectStore 的 loadProjects）
-        const { useProjectStore } = await import('./projectStore')
         await useProjectStore.getState().loadProjects()
 
         const isoNow = new Date().toISOString()
