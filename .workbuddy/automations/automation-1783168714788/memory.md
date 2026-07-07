@@ -1,5 +1,84 @@
 # MindFlow MVP 自动迭代记录
 
+## 2026-07-07 第 37 次执行 — Sidebar 项目列表拖拽排序
+
+**背景**：用户管理多个项目时，侧边栏项目列表始终按 `sort_order` 排序，但用户无法手动调整项目顺序，这是常见的高频交互痛点。
+
+**改动**：
+1. `src/frontend/src/components/layout/Sidebar.tsx` — 新增 HTML5 drag-and-drop 拖拽排序：
+   - 项目行 `draggable`，拖拽时 `opacity-40` 视觉反馈
+   - 目标位置 `ring-2` 高亮 (`bg-primary-subtle`)
+   - 放下后 `reorderProjects` 更新 `sort_order`
+   - 逐个 `syncProjectToCloud` 同步云端 (best effort，离线静默跳过)
+   - 重命名时禁用拖拽 (`renamingId !== p.id`)
+2. 提交上一轮遗留未提交的代码（看板添加任务联动 mindmap + 标签列移除 + 暗色配色微调）
+3. `docs/PRD.md` — §11 迭代记录补全
+
+**验证**：Build 零 errors ✅
+
+---
+
+## 2026-07-07 第 36 次执行 — PWA 离线支持 + DOMPurify XSS 防护
+
+**背景**：PRD §9 非功能需求要求"PWA 基础功能完全离线可用"，安全约束要求 DOMPurify 清洗节点富文本。当前无 manifest、无 Service Worker、无 DOMPurify。
+
+**改动**：
+1. `vite.config.ts` — 安装 `vite-plugin-pwa`，配置 manifest + Workbox generateSW（预缓存 29 entries + Google Fonts runtime cache + skipWaiting）
+2. `index.html` — 新增 theme-color、manifest、description、apple-touch-icon meta
+3. `src/hooks/usePWA.ts` — 监听 `beforeinstallprompt` / `appinstalled`，提供 install 方法和 isInstalled 状态
+4. `src/components/layout/Header.tsx` — 条件渲染"安装到桌面" Download 按钮
+5. `src/lib/sanitize.ts` — DOMPurify 封装：`sanitizeText`、`sanitizeUrl`、`safeLinkUrl`
+6. `src/components/mindmap/NodeDetailSidebar.tsx` — Markdown link 解析使用 `safeLinkUrl` 拦截危险协议
+7. `docs/PRD.md` — §11 迭代记录补全
+
+**验证**：Build 零 errors ✅，`wrangler pages deploy` → https://7027c992.mindflow-app.pages.dev ✅
+
+---
+
+## 2026-07-07 第 35 次执行 — 路由级代码分割（懒加载）
+
+**背景**：Build 输出显示首屏 bundle 550KB gzip 过大，所有页面静态导入。PRD 非功能需求要求"首次加载 < 2秒"。
+
+**改动**：
+1. `src/frontend/src/App.tsx` — React.lazy + Suspense 路由级懒加载，首屏 JS 从 550KB 降至 175KB gzip（-68%）
+2. `docs/PRD.md` — §11 补全 25~34 次迭代记录
+3. 提交 E2E 稳定性改进（journey-2/3/6 retry + API 直接操作）
+
+**验证**：Build 零 errors ✅，部署 → https://9a78def0.mindflow-app.pages.dev ✅
+
+---
+
+## 2026-07-07 第 34 次执行 — 品牌化空状态组件 (EmptyState)
+
+**背景**：设计评审（迭代 28）指出空状态缺乏品牌情感和引导力（P1），且 GlobalSearch 搜索结果为空时没有任何空状态设计。此前多次执行（32~38）的代码改动未 commit。
+
+**改动**：
+1. **提交未 commit 的核心代码**：幕布式大纲编辑器、自动双向同步 + SyncStatusIndicator、键盘导航、布局切换修复、根节点改名联动、journey-9 云端同步测试。commit `50a6900`。
+2. **新增 `src/components/ui/EmptyState.tsx`** — 通用品牌化空状态组件，支持多色调图标背景 + CTA 按钮 + 暗色模式适配
+3. **6 个页面空状态升级**：Dashboard（项目进度/高优任务）、GlobalTasks（含新建项目 CTA）、GlobalBoard、ProjectBoard、GlobalSearch（此前缺失）
+
+**验证**：
+- Build 零 errors ✅（1.28s）
+- `wrangler pages deploy` 成功 → https://d7604ad7.mindflow-app.pages.dev ✅
+
+---
+
+# MindFlow MVP 自动迭代记录
+
+## 2026-07-06 第 33 次执行 — Bug 修复：大纲编辑器暗色模式适配
+
+**背景**：自动化执行扫描发现第 32 次执行的新代码未提交，且 OutlineEditor 有两处硬编码 `focus:bg-white`，暗色模式下编辑器焦点背景会反白刺眼。
+
+**改动**：
+1. **`src/components/outline/OutlineEditor.tsx`** — 两处 `focus:bg-white` → `focus:bg-bg-primary`（第 199 行根节点 + 第 282 行子节点），暗色模式焦点背景正确跟随主题
+2. **提交第 32 次执行未 commit 的改动**：幕布式大纲编辑器、SyncStatusIndicator、syncStore、自动双向同步等
+
+**验证**：Build 零 errors ✅，Deploy → https://76b3a611.mindflow-app.pages.dev ✅
+
+---
+
+# MindFlow MVP 自动迭代记录
+
 ## 2026-07-06 第 32 次执行 — 大纲重构（幕布式编辑器）+ 思维导图拖拽
 
 **背景**：用户反馈大纲视图可编辑性太差，要求参考幕布重构；思维导图缺少拖拽等基本功能。
