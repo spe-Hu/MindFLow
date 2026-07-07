@@ -11,7 +11,18 @@ import { runJourney8 } from './journey-8'
 import { runJourney9 } from './journey-9'
 
 async function clearIndexedDB(page: Page) {
-  await page.goto('/auth')
+  // Step 1: 在已有页面（任何页面）先清 localStorage
+  // 这样 reload / goto 后 zustand persist 不会恢复 isLocalMode
+  await page.goto('/')
+  await page.evaluate(() => {
+    localStorage.removeItem('mindflow-auth-store')
+    Object.keys(localStorage).forEach((k) => {
+      if (k.startsWith('mindflow-')) localStorage.removeItem(k)
+    })
+  })
+  await page.reload()
+
+  // Step 2: 清 IndexedDB
   await page.evaluate(async () => {
     const dexie = (window as any).__mindflowDb
     if (dexie && dexie.delete) {
@@ -25,6 +36,9 @@ async function clearIndexedDB(page: Page) {
       })
     }
   })
+
+  // Step 3: 回到 /auth（此时 zustand 不会恢复 localMode）
+  await page.goto('/auth')
   await page.waitForTimeout(500)
 }
 

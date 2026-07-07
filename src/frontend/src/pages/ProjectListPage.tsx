@@ -37,11 +37,10 @@ export function ProjectListPage() {
       <TaskFilterBar />
       <div className="flex-1 overflow-y-auto bg-bg-primary">
         {/* Header Row */}
-        <div className="h-9 px-4 grid grid-cols-[40px_1fr_80px_120px_100px_40px] items-center text-xs text-text-muted border-b border-border-default bg-bg-surface">
+        <div className="h-9 px-4 grid grid-cols-[40px_1fr_80px_100px_40px] items-center text-xs text-text-muted border-b border-border-default bg-bg-surface">
           <span />
           <span>任务名称</span>
           <span>优先级</span>
-          <span>标签</span>
           <span>截止日期</span>
           <span />
         </div>
@@ -55,7 +54,7 @@ export function ProjectListPage() {
         {filteredTasks.map((task) => (
           <div
             key={task.id}
-            className="h-12 px-4 grid grid-cols-[40px_1fr_80px_120px_100px_40px] items-center text-sm border-b border-border-default group hover:bg-bg-elevated transition-colors duration-fast"
+            className="h-12 px-4 grid grid-cols-[40px_1fr_80px_100px_40px] items-center text-sm border-b border-border-default group hover:bg-bg-elevated transition-colors duration-fast"
           >
             <button
               className="flex items-center justify-center"
@@ -87,10 +86,6 @@ export function ProjectListPage() {
             <div className="flex items-center gap-1.5">
               <span className={cn('h-2 w-2 rounded-full', PRIORITY_DOT[task.priority] || 'bg-text-muted')} />
               <span className="text-xs text-text-secondary">{task.priority}</span>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-text-muted">—</span>
             </div>
 
             <span className="text-xs font-mono text-text-secondary">

@@ -162,12 +162,22 @@ async function mockCloudTasksRoute(page: Page) {
 
 /** 创建本地数据（项目 + 思维导图节点 + 任务） */
 async function createLocalData(page: Page) {
-  // 进入本地模式
+  // 进入本地模式：先清 localStorage → reload 确保 zustand 不恢复 isLocalMode
+  await page.goto(BASE_URL + '/')
+  await page.evaluate(() => {
+    localStorage.removeItem('mindflow-auth-store')
+    Object.keys(localStorage).forEach((k) => {
+      if (k.startsWith('mindflow-')) localStorage.removeItem(k)
+    })
+  })
+  await page.reload()
+
   await page.goto(BASE_URL + '/auth')
-  await page.waitForTimeout(2500)
+  await page.waitForLoadState('networkidle')
   const offlineBtn = page.locator('button:has-text("离线使用，数据仅存本地")')
+  await offlineBtn.waitFor({ state: 'visible', timeout: 15000 })
   await offlineBtn.click()
-  await page.waitForTimeout(2500)
+  await page.waitForTimeout(1500)
 
   // 创建项目
   await page.goto(BASE_URL + '/projects')

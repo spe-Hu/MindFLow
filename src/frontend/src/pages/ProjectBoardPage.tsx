@@ -5,7 +5,8 @@ import { ViewHeader } from '@/components/layout/ViewHeader'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { cn } from '@/lib/utils'
-import { EmptyState } from '@/components/ui/EmptyState'
+import { db } from '@/lib/db'
+import { syncMindmapToCloud, syncTaskToCloud } from '@/lib/sync'
 
 const COLUMNS: { status: string; title: string }[] = [
   { status: 'todo', title: '待办' },
@@ -24,22 +25,53 @@ export function ProjectBoardPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { setActiveProject } = useProjectStore()
-  const { projectTasks, loadProjectTasks, updateTask, addTask } = useTaskStore()
+  const { projectTasks, loadProjectTasks, updateTask } = useTaskStore()
 
   const handleAddTask = async (status: string) => {
     const title = window.prompt('输入新任务标题')
     if (!title?.trim() || !id) return
-    await addTask({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+
+    const mindmap = await db.mindmaps.where('project_id').equals(id).first()
+    if (!mindmap) return
+
+    const nodeUid = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const tree = structuredClone(mindmap.tree_data) as Record<string, unknown>
+    const root = (tree.root || tree) as Record<string, unknown>
+    const children = (root.children || []) as Record<string, unknown>[]
+
+    children.push({
+      data: {
+        text: title.trim(),
+        uid: nodeUid,
+        _isTask: true,
+        _status: status,
+        _priority: 'medium',
+      },
+      children: [],
+    })
+
+    await db.mindmaps.update(mindmap.id, {
+      tree_data: tree,
+      version: mindmap.version + 1,
+    })
+
+    const task = {
+      id: `${id}-${nodeUid}`,
       project_id: id,
-      node_uid: '',
+      node_uid: nodeUid,
       title: title.trim(),
       status: status as 'todo' | 'in_progress' | 'done' | 'cancelled',
-      priority: 'medium',
+      priority: 'medium' as const,
       sort_order: 0,
       created_at: new Date(),
       updated_at: new Date(),
-    })
+    }
+
+    await db.tasks.put(task)
+    await loadProjectTasks(id)
+    const updatedMindmap = { ...mindmap, tree_data: tree, version: mindmap.version + 1 }
+    await syncMindmapToCloud(updatedMindmap).catch(() => { /* ignore offline */ })
+    await syncTaskToCloud(task).catch(() => { /* ignore offline */ })
   }
 
   useEffect(() => {

@@ -18,11 +18,12 @@ const NODE_GRANDCHILD_2 = '用户调研报告'
 // helper: 进入本地模式 (免登录)
 export async function enterLocalMode(page: Page) {
   await page.goto(BASE_URL + '/auth')
-  await page.waitForTimeout(2500)
+  await page.waitForLoadState('networkidle')
   // 「离线使用,数据仅存本地」按钮
   const offlineBtn = page.locator('button:has-text("离线使用，数据仅存本地")')
+  await offlineBtn.waitFor({ state: 'visible', timeout: 15000 })
   await offlineBtn.click()
-  await page.waitForTimeout(2000)
+  await page.waitForTimeout(1000)
 }
 
 // helper: 创建项目
