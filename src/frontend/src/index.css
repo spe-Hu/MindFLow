@@ -5,10 +5,10 @@
 @layer base {
   :root {
     /* MindFlow Design Tokens — Light Mode */
-    --color-primary: #4F46E5;
-    --color-primary-hover: #4338ca;
-    --color-primary-ring: rgba(79, 70, 229, 0.3);
-    --color-primary-subtle: rgba(79, 70, 229, 0.08);
+    --color-primary: #7C5CFC;
+    --color-primary-hover: #6d4ef0;
+    --color-primary-ring: rgba(124, 92, 252, 0.35);
+    --color-primary-subtle: rgba(124, 92, 252, 0.10);
 
     --bg-primary: #F8FAFC;
     --bg-surface: #FFFFFF;
@@ -21,7 +21,7 @@
 
     --border-default: #E2E8F0;
     --border-hover: #CBD5E1;
-    --border-focus: #4F46E5;
+    --border-focus: #7C5CFC;
 
     --color-success: #3FB950;
     --color-warning: #D29922;
@@ -37,15 +37,15 @@
     --radius-lg: 12px;
     --radius-xl: 16px;
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 16px rgba(0, 0, 0, 0.08);
-    --shadow-glow: 0 0 40px rgba(79, 70, 229, 0.08);
+    --shadow-sm: 0 1px 2px rgba(76, 29, 149, 0.05), 0 2px 4px rgba(76, 29, 149, 0.04);
+    --shadow-md: 0 1px 2px rgba(76, 29, 149, 0.05), 0 4px 8px rgba(76, 29, 149, 0.06);
+    --shadow-lg: 0 1px 2px rgba(76, 29, 149, 0.05), 0 8px 16px rgba(76, 29, 149, 0.08);
+    --shadow-glow: 0 0 40px rgba(124, 92, 252, 0.14);
 
     --easing-smooth: cubic-bezier(0.4, 0, 0.2, 1);
     --easing-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    --font-body: 'Inter', 'Noto Sans SC', 'PingFang SC', sans-serif;
+    --font-body: 'Geist Variable', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
     /* shadcn/ui compatible tokens */
@@ -55,7 +55,7 @@
     --card-foreground: #0F172A;
     --popover: #FFFFFF;
     --popover-foreground: #0F172A;
-    --primary: #4F46E5;
+    --primary: #7C5CFC;
     --primary-foreground: #FFFFFF;
     --secondary: #F1F5F9;
     --secondary-foreground: #0F172A;
@@ -67,15 +67,15 @@
     --destructive-foreground: #FFFFFF;
     --border: #E2E8F0;
     --input: #E2E8F0;
-    --ring: #4F46E5;
+    --ring: #7C5CFC;
     --radius: 0.5rem;
   }
 
   [data-theme='dark'] {
-    --color-primary: #6366f1;
-    --color-primary-hover: #818cf8;
-    --color-primary-ring: rgba(99, 102, 241, 0.4);
-    --color-primary-subtle: rgba(99, 102, 241, 0.12);
+    --color-primary: #9D86FF;
+    --color-primary-hover: #B3A0FF;
+    --color-primary-ring: rgba(157, 134, 255, 0.40);
+    --color-primary-subtle: rgba(157, 134, 255, 0.14);
 
     --bg-primary: #0B0F19;
     --bg-surface: #0F172A;
@@ -88,7 +88,7 @@
 
     --border-default: #334155;
     --border-hover: #475569;
-    --border-focus: #6366f1;
+    --border-focus: #9D86FF;
 
     --color-success: #3FB950;
     --color-warning: #D29922;
@@ -101,7 +101,7 @@
     --card-foreground: #E2E8F0;
     --popover: #0F172A;
     --popover-foreground: #E2E8F0;
-    --primary: #6366f1;
+    --primary: #9D86FF;
     --primary-foreground: #FFFFFF;
     --secondary: #1E293B;
     --secondary-foreground: #E2E8F0;
@@ -113,7 +113,7 @@
     --destructive-foreground: #FFFFFF;
     --border: #334155;
     --input: #334155;
-    --ring: #6366f1;
+    --ring: #9D86FF;
   }
 
   * {
@@ -124,6 +124,10 @@
     font-family: var(--font-body);
     color: var(--text-primary);
     background-color: var(--bg-primary);
+    background-image:
+      radial-gradient(1100px circle at 6% -12%, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 55%),
+      radial-gradient(900px circle at 104% 110%, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 50%);
+    background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -142,6 +146,12 @@
     text-wrap: balance;
   }
 
+  .font-display {
+    font-family: var(--font-body);
+    letter-spacing: -0.022em;
+    font-weight: 600;
+  }
+
   .dot-grid {
     background-image: radial-gradient(circle, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
     background-size: 24px 24px;
@@ -150,6 +160,24 @@
   [data-theme='dark'] .dot-grid {
     background-image: radial-gradient(circle, rgba(107, 114, 128, 0.12) 1px, transparent 1px);
   }
+}
+
+/* Fine grain overlay — adds tactile texture, breaks digital flatness */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Dialog overlay backdrop — force visible regardless of Base UI internal behavior */

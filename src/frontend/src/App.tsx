@@ -10,17 +10,18 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { Loader2 } from 'lucide-react'
 
-// Route-level code splitting: lazy-load non-core pages to reduce initial bundle
-const ProjectMindMapPage = React.lazy(() => import('@/pages/ProjectMindMapPage'))
-const ProjectListPage = React.lazy(() => import('@/pages/ProjectListPage'))
-const ProjectBoardPage = React.lazy(() => import('@/pages/ProjectBoardPage'))
-const OutlinePage = React.lazy(() => import('@/pages/OutlinePage'))
-const GlobalTasksPage = React.lazy(() => import('@/pages/GlobalTasksPage'))
-const GlobalBoardPage = React.lazy(() => import('@/pages/GlobalBoardPage'))
-const CalendarPage = React.lazy(() => import('@/pages/CalendarPage'))
-const GanttPage = React.lazy(() => import('@/pages/GanttPage'))
-const SettingsPage = React.lazy(() => import('@/pages/SettingsPage'))
-const AuthPage = React.lazy(() => import('@/pages/AuthPage'))
+// Route-level code splitting: lazy-load non-core pages to reduce initial bundle.
+// Pages use NAMED exports, so map them to `default` for React.lazy.
+const ProjectMindMapPage = React.lazy(() => import('@/pages/ProjectMindMapPage').then((m) => ({ default: m.ProjectMindMapPage })))
+const ProjectListPage = React.lazy(() => import('@/pages/ProjectListPage').then((m) => ({ default: m.ProjectListPage })))
+const ProjectBoardPage = React.lazy(() => import('@/pages/ProjectBoardPage').then((m) => ({ default: m.ProjectBoardPage })))
+const OutlinePage = React.lazy(() => import('@/pages/OutlinePage').then((m) => ({ default: m.OutlinePage })))
+const GlobalTasksPage = React.lazy(() => import('@/pages/GlobalTasksPage').then((m) => ({ default: m.GlobalTasksPage })))
+const GlobalBoardPage = React.lazy(() => import('@/pages/GlobalBoardPage').then((m) => ({ default: m.GlobalBoardPage })))
+const CalendarPage = React.lazy(() => import('@/pages/CalendarPage').then((m) => ({ default: m.CalendarPage })))
+const GanttPage = React.lazy(() => import('@/pages/GanttPage').then((m) => ({ default: m.GanttPage })))
+const SettingsPage = React.lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const AuthPage = React.lazy(() => import('@/pages/AuthPage').then((m) => ({ default: m.AuthPage })))
 
 function PageFallback() {
   return (

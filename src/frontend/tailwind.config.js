@@ -6,19 +6,19 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#4F46E5',
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4F46E5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          ring: 'rgba(79, 70, 229, 0.3)',
-          subtle: 'rgba(79, 70, 229, 0.08)',
+          DEFAULT: '#7C5CFC',
+          50: '#f3f0ff',
+          100: '#ece7ff',
+          200: '#ddd4ff',
+          300: '#c4b5fd',
+          400: '#a78bfa',
+          500: '#8b5cf6',
+          600: '#7C5CFC',
+          700: '#6d4ef0',
+          800: '#5a3fd6',
+          900: '#4a32b0',
+          ring: 'rgba(124, 92, 252, 0.35)',
+          subtle: 'rgba(124, 92, 252, 0.10)',
         },
         bg: {
           primary: 'var(--bg-primary)',
@@ -78,7 +78,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Noto Sans SC', 'PingFang SC', 'sans-serif'],
+        sans: ['Geist Variable', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       fontSize: {
@@ -100,10 +100,10 @@ export default {
         pop: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
       },
       boxShadow: {
-        sm: '0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.04)',
-        md: '0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.06)',
-        lg: '0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 16px rgba(0, 0, 0, 0.08)',
-        glow: '0 0 40px rgba(79, 70, 229, 0.08)',
+        sm: '0 1px 2px rgba(76, 29, 149, 0.05), 0 2px 4px rgba(76, 29, 149, 0.04)',
+        md: '0 1px 2px rgba(76, 29, 149, 0.05), 0 4px 8px rgba(76, 29, 149, 0.06)',
+        lg: '0 1px 2px rgba(76, 29, 149, 0.05), 0 8px 16px rgba(76, 29, 149, 0.08)',
+        glow: '0 0 40px rgba(124, 92, 252, 0.14)',
       },
       spacing: {
         'space-1': '4px',

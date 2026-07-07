@@ -1,27 +1,31 @@
-# MindFlow 迭代 33 — PDF 导图导出
+# MindFlow 第 36 次迭代 — PWA 离线支持 + DOMPurify XSS 防护
 
-## 本次交付
+## 本次迭代内容
 
-- **修改** `src/components/mindmap/MindMapCanvas.tsx` — 新增 PDF 导出支持
-  - 导入并注册 simple-mind-map 内置 `ExportPDF` 插件（基于 `pdf-lib`）
-  - 导出下拉菜单新增「导出 PDF」按钮（FileInput 图标）
-  - `handleExport` 新增 `pdf` 类型，使用 `instance.export('pdf', true, 'mindflow')` 触发完整导出+下载流程
-  - 零新外部依赖（`pdf-lib` 已由 simple-mind-map 引入）
+### 1. PWA 离线支持
+- **vite-plugin-pwa** 集成：自动生成 `manifest.webmanifest` + Service Worker（Workbox）
+- 预缓存 29 个静态资源（JS/CSS/HTML/图标），离线可用
+- Google Fonts runtime caching，字体离线可用
+- `index.html` 补全 PWA meta：`theme-color`、`manifest`、`apple-touch-icon`
+- Header 新增「安装到桌面」按钮（监听 `beforeinstallprompt` 事件）
 
-## 验证结果
+### 2. DOMPurify XSS 防护
+- 新建 `src/lib/sanitize.ts`：三层清洗工具
+  - `sanitizeText` — 剥离全部 HTML 标签（纯文本字段）
+  - `sanitizeUrl` — 只允许 `http/https/mailto` 协议
+  - `safeLinkUrl` — 轻量协议拦截（`javascript:`/`data:`/`blob:`/`file:` 等）
+- `NodeDetailSidebar` Markdown 链接解析已接入 `safeLinkUrl`
 
+### 3. 部署与验证
 - Build 零 errors ✅
-- 无新增 lint warnings ✅
-- 代码改动集中在单一文件，风险可控
+- Cloudflare Pages 部署成功 ✅
+- 在线地址：https://7027c992.mindflow-app.pages.dev
 
-## 关键决策
-
-- 复用 simple-mind-map 原生 ExportPDF 插件，不自行封装 pdf-lib 逻辑
-- 通过 `instance.export()` 调用以利用内置 downloadFile 触发浏览器下载
-- PDF 通过 PNG → pdf-lib embed → PDF bytes 流程生成，单页自适应导图尺寸
-
-## 后续建议
-
-1. 文件附件（C5）—— IndexedDB blob 存储方案，涉及 schema 变更
-2. 协作分享（C2）—— 需要 Supabase RLS + 分享 token 表，工作量较大
-3. bundle 体积优化 — pdf-lib 使 gzip 后 bundle +~176KB，后续可考虑动态导入懒加载
+## 变更文件
+- `src/frontend/vite.config.ts`
+- `src/frontend/index.html`
+- `src/frontend/src/hooks/usePWA.ts`（新增）
+- `src/frontend/src/lib/sanitize.ts`（新增）
+- `src/frontend/src/components/layout/Header.tsx`
+- `src/frontend/src/components/mindmap/NodeDetailSidebar.tsx`
+- `docs/PRD.md`
