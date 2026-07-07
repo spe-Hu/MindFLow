@@ -1,5 +1,20 @@
 # MindFlow MVP 自动迭代记录
 
+## 2026-07-07 第 39 次执行 — 消除 INEFFECTIVE_DYNAMIC_IMPORT 构建警告
+
+**背景**：Build 输出长期存在 3 个 `INEFFECTIVE_DYNAMIC_IMPORT` 警告，影响构建优化效果和代码整洁度。
+
+**根因**：projectStore、templates、db 三个模块被 `await import()` 动态导入的同时，也被大量组件静态导入，导致 Vite 无法将其拆分为独立 chunk，动态导入失去意义。
+
+**改动**：
+1. `src/stores/syncStore.ts` — projectStore 从 `await import('./projectStore')` 改为顶部同步导入
+2. `src/lib/aiMindMap.ts` — templates 的 `applyTemplate`/`getTemplateById` 从动态导入改为顶部同步导入（与已有的 `createNode` 统一）
+3. `src/components/project/NewProjectDialog.tsx` — `syncTasksFromTree` 从动态导入改为同步导入（db 已在顶部静态导入）
+
+**验证**：Build 零 errors + 零 warnings（原 3 个 INEFFECTIVE_DYNAMIC_IMPORT + chunk size 提示）✅｜Lint 0 errors ✅｜commit `f8ac84a`
+
+---
+
 ## 2026-07-07 第 38 次执行 — Lint 错误清理 + 运行时 bug 修复
 
 **背景**：项目扫描发现 4 个 lint errors（含 1 个运行时崩溃风险 + 1 个 React hooks 规则违例）和 28 个 warnings。
