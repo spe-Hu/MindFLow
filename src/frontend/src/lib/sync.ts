@@ -156,7 +156,7 @@ export async function migrateLocalDataToCloud(
   if (!userId) throw new Error('用户未登录，无法同步')
   if (!isOnline()) throw new Error('当前处于离线状态，无法同步')
 
-  console.log(`[Sync] Migrating ${projects.length} projects, ${mindmaps.length} mindmaps, ${tasks.length} tasks to cloud...`)
+  devLog(`[Sync] Migrating ${projects.length} projects, ${mindmaps.length} mindmaps, ${tasks.length} tasks to cloud...`)
 
   const errors: string[] = []
 
@@ -190,7 +190,7 @@ export async function migrateLocalDataToCloud(
     throw new Error(`云端同步失败: ${summary}${more}`)
   }
 
-  console.log('[Sync] Migration complete.')
+  devLog('[Sync] Migration complete.')
 }
 
 // --------------------------------------------

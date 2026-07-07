@@ -7,6 +7,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { db } from '@/lib/db'
 import { syncMindmapToCloud, syncProjectToCloud } from '@/lib/sync'
+import { devLog } from '@/lib/devConsole'
 import type { LocalMindmap } from '@/lib/db'
 
 export function ProjectMindMapPage() {
@@ -40,8 +41,7 @@ export function ProjectMindMapPage() {
       const latest = list.length > 0
         ? list.reduce((a, b) => (a.version > b.version ? a : b))
         : null
-      // eslint-disable-next-line no-console
-      console.log('[ProjectMindMapPage] DB query done — latest root:', (latest?.tree_data as any)?.data?.text, '| loading→false')
+      devLog('[ProjectMindMapPage] DB query done — latest root:', (latest?.tree_data as any)?.data?.text, '| loading→false')
       setMindmap(latest)
       setLoading(false)
     })

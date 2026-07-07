@@ -219,7 +219,7 @@ export function DashboardPage() {
             icon={Circle}
             label="待办"
             value={stats.todo}
-            colorClass="bg-bg-elevated text-text-secondary"
+            colorClass="bg-primary-50 text-primary-600"
             onClick={() => navigate('/global-tasks')}
           />
           <StatCard

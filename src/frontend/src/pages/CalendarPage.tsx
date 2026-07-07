@@ -218,7 +218,7 @@ export function CalendarPage() {
             </button>
             <button
               onClick={goToday}
-              className="h-7 px-2.5 rounded-md text-xs font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors ml-1 border border-border-default"
+              className="h-7 px-2.5 rounded-md text-xs font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors ml-1"
             >
               今天
             </button>

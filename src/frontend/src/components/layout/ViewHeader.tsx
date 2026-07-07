@@ -63,6 +63,20 @@ export function ViewHeader({
           <div className="group flex items-center gap-1.5 min-w-0">
             <h2
               className="text-sm font-medium text-text-primary truncate max-w-[160px] cursor-text"
+              title="点击或双击编辑项目名"
+              onClick={(e) => {
+                const target = e.currentTarget
+                if (target.contentEditable === 'true') return
+                target.contentEditable = 'true'
+                target.focus()
+                // Place cursor at end
+                const range = document.createRange()
+                range.selectNodeContents(target)
+                range.collapse(false)
+                const sel = window.getSelection()
+                sel?.removeAllRanges()
+                sel?.addRange(range)
+              }}
               onDoubleClick={(e) => {
                 const target = e.currentTarget
                 target.contentEditable = 'true'
@@ -77,13 +91,20 @@ export function ViewHeader({
                   e.preventDefault()
                   e.currentTarget.blur()
                 }
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  if (project) {
+                    e.currentTarget.textContent = project.name
+                  }
+                  e.currentTarget.contentEditable = 'false'
+                }
               }}
               suppressContentEditableWarning
             >
               {project.name}
             </h2>
             <Pencil
-              className="h-3 w-3 text-text-muted opacity-0 group-hover:opacity-60 transition-opacity duration-150 shrink-0"
+              className="h-3 w-3 text-text-muted opacity-30 group-hover:opacity-70 transition-opacity duration-150 shrink-0"
               aria-hidden="true"
             />
           </div>
