@@ -9,6 +9,7 @@ import { runJourney6 } from './journey-6'
 import { runJourney7 } from './journey-7'
 import { runJourney8 } from './journey-8'
 import { runJourney9 } from './journey-9'
+import { runJourney10 } from './journey-10'
 
 async function clearIndexedDB(page: Page) {
   // Step 1: 在已有页面（任何页面）先清 localStorage
@@ -122,6 +123,11 @@ test.describe('MindFlow E2E – All Journeys', () => {
   test('Journey 9 – 云端同步 (S3): dialog + 上传/下载 + 离线', async ({ page }) => {
     await clearIndexedDB(page)
     const results = await runJourney9(page)
+    await assertResults(results)
+  })
+
+  test('Journey 10 – 只读分享链接 (C2) + 节点附件 (C5)', async ({ page }) => {
+    const results = await runJourney10(page)
     await assertResults(results)
   })
 })
