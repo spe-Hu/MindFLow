@@ -52,7 +52,7 @@
 ## 未完成功能 (Should/Could)
 - **Must Have**: 全部完成 ✅ (M1~M15，含暗色模式 M8)
 - **Should Have**: 全部完成 ✅ (S1 大纲 / S2 导入导出 (PDF 待后续) / S3 云端同步 / S4 日历月+周视图 / S5 搜索 / S6 最近编辑 / C6 归档)
-- **Could Have**: AI 生成 ✅ / 番茄钟 ✅ / Dashboard ✅ / 通知提醒 ✅ / 节点详情 ✅ / 存储管理面板 ✅ / 项目模板 ✅ / Markdown 备注 ✅ / 甘特图 ✅ / PDF 导出 ✅ / 空状态品牌化 ✅ / PWA 离线支持 ✅ / DOMPurify XSS 防护 ✅ / 文件附件 ❌ / 协作分享 ❌
+- **Could Have**: AI 生成 ✅ / 番茄钟 ✅ / Dashboard ✅ / 通知提醒 ✅ / 节点详情 ✅ / 存储管理面板 ✅ / 项目模板 ✅ / Markdown 备注 ✅ / 甘特图 ✅ / PDF 导出 ✅ / 空状态品牌化 ✅ / PWA 离线支持 ✅ / DOMPurify XSS 防护 ✅ / 文件附件 ✅ / 协作分享 ❌
 - **E2E 自动化集成**: ✅ 已封装 `npx playwright test` + `all-journeys.spec.ts`（8 journey / 77+ 断言），CI 接入待后续
 
 ## 新增组件
