@@ -49,8 +49,17 @@ async function addChildTaskWithDueDate(
   // headless 下 Tab 不总是触发 edit-wrap,加 retry 机制
   let editWrap = page.locator('div.smm-node-edit-wrap')
   let retries = 0
-  while (retries < 3) {
-    await page.locator('g.smm-node').first().click({ force: true })
+  while (retries < 5) {
+    // headless 下 simple-mind-map 的 g.smm-node 偶尔被 Playwright 判定不可见
+    // （截图确认节点已正常渲染），改用 mouse.click + boundingBox 绕过 actionability
+    const rootEl = page.locator('g.smm-node').first()
+    await rootEl.scrollIntoViewIfNeeded().catch(() => {})
+    const box = await rootEl.boundingBox().catch(() => null)
+    if (box && box.width > 0 && box.height > 0) {
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    } else {
+      await rootEl.click({ force: true }).catch(() => {}) // fallback
+    }
     await page.waitForTimeout(300)
     await page.keyboard.press('Tab')
     await page.waitForTimeout(500)

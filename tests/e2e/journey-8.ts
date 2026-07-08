@@ -354,7 +354,10 @@ export async function runJourney8(page: Page) {
     const url = page.url()
     expect(url).toMatch(/\/project\/.+\/board/)
 
-    const boardCards = await page.locator('[data-testid="project-board"] [data-testid="task-card"]').all()
+    // 看板卡片为 ProjectBoardPage 内联渲染的 div（无 data-testid），
+    // 真实结构: <div class="bg-bg-surface border border-border-default rounded-md p-3">…任务标题…</div>
+    // 用 main 限定到看板区域，避免误匹配侧边栏/头部。
+    const boardCards = await page.locator('main div.bg-bg-surface.border.border-border-default.rounded-md.p-3').all()
     expect(boardCards.length).toBeGreaterThan(0)
 
     results.push({ name: 'DASH-2: 点击工作台项目进度卡片跳转到项目看板', pass: true })
