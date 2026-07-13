@@ -23,6 +23,10 @@ import {
   Trash2,
   ImagePlus,
   X,
+  ListChecks,
+  LayoutDashboard,
+  FolderKanban,
+  TrendingUp,
 } from 'lucide-react'
 import {
   uploadAttachment,
@@ -244,12 +248,14 @@ const PRIORITY_COLOR: Record<string, string> = {
 interface NodeDetailSidebarProps {
   nodeData: Record<string, unknown> | null
   projectId: string
+  tasks: import('@/lib/db').LocalTask[]
   onUpdateNodeData: (updates: Record<string, unknown>) => void
 }
 
 export function NodeDetailSidebar({
   nodeData,
   projectId,
+  tasks,
   onUpdateNodeData,
 }: NodeDetailSidebarProps) {
   const [activeTab, setActiveTab] = useState('properties')
@@ -480,17 +486,24 @@ export function NodeDetailSidebar({
         <div className="px-4 pt-4 pb-2 border-b border-border-default shrink-0">
           <div className="flex items-start gap-2">
             <div className="mt-0.5 shrink-0">
-              <AlignLeft className="h-4 w-4 text-text-muted" />
+              {nodeData ? (
+                <AlignLeft className="h-4 w-4 text-text-muted" />
+              ) : (
+                <LayoutDashboard className="h-4 w-4 text-text-muted" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-medium truncate leading-tight">
-                {text || '未命名节点'}
+                {nodeData ? (text || '未命名节点') : '项目概览'}
               </h3>
-              <p className="text-2xs text-text-muted font-mono mt-0.5 truncate">uid: {uid || '-'}</p>
+              <p className="text-2xs text-text-muted font-mono mt-0.5 truncate">
+                {nodeData ? `uid: ${uid || '-'}` : `${tasks.length} 个任务 · 实时状态`}
+              </p>
             </div>
           </div>
         </div>
 
+        {nodeData ? (
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
@@ -866,6 +879,89 @@ export function NodeDetailSidebar({
             </div>
           </TabsContent>
         </Tabs>
+) : (
+        /* ═══════ 项目概览（未选中节点时）═══════ */
+        <div className="flex-1 overflow-auto px-4 py-5 space-y-5 min-h-0">
+          {/* 统计卡片 */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: '待办', count: tasks.filter(t => t.status === 'todo').length, color: 'text-text-muted', bg: 'bg-bg-elevated' },
+              { label: '进行中', count: tasks.filter(t => t.status === 'in_progress').length, color: 'text-priority-medium', bg: 'bg-amber-50 dark:bg-amber-950/30' },
+              { label: '已完成', count: tasks.filter(t => t.status === 'done').length, color: 'text-status-success', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+            ].map((stat) => (
+              <div key={stat.label} className={cn('rounded-lg border border-border-default p-3 text-center', stat.bg)}>
+                <p className={cn('text-xl font-bold', stat.color)}>{stat.count}</p>
+                <p className="text-2xs text-text-muted mt-0.5">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* 任务列表 */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <ListChecks className="h-3.5 w-3.5 text-text-muted" />
+              <h4 className="text-xs font-medium text-text-primary">任务列表</h4>
+              <span className="text-2xs text-text-muted ml-auto">{tasks.length} 个</span>
+            </div>
+            {tasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-text-muted gap-2">
+                <FolderKanban className="h-8 w-8 opacity-30" />
+                <p className="text-xs">暂无任务</p>
+                <p className="text-2xs text-text-muted">在导图中将节点转为任务即可</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {tasks.slice().sort((a, b) => {
+                  const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 }
+                  return (priorityOrder[a.priority || 'medium'] || 2) - (priorityOrder[b.priority || 'medium'] || 2)
+                }).map((task) => (
+                  <div
+                    key={task.id}
+                    className={cn(
+                      'flex items-center gap-2 px-2.5 py-2 rounded-md text-xs border transition-colors',
+                      task.status === 'done'
+                        ? 'border-border-default bg-bg-elevated opacity-60'
+                        : 'border-border-default bg-bg-surface hover:bg-bg-elevated'
+                    )}
+                  >
+                    <span className={cn(
+                      'h-1.5 w-1.5 rounded-full shrink-0',
+                      task.priority === 'urgent' && 'bg-priority-urgent',
+                      task.priority === 'high' && 'bg-priority-high',
+                      task.priority === 'medium' && 'bg-priority-medium',
+                      task.priority === 'low' && 'bg-priority-low',
+                    )} />
+                    <span className={cn('flex-1 min-w-0 truncate', task.status === 'done' && 'line-through')}>
+                      {task.title}
+                    </span>
+                    {task.due_date && (
+                      <span className={cn(
+                        'text-2xs shrink-0',
+                        new Date(task.due_date) < new Date() && task.status !== 'done' ? 'text-status-error' : 'text-text-muted'
+                      )}>
+                        {new Date(task.due_date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 高优提示 */}
+          {tasks.filter(t => t.status !== 'done' && (t.priority === 'urgent' || t.priority === 'high')).length > 0 && (
+            <div className="p-3 rounded-lg border border-priority-high/20 bg-priority-high/5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <TrendingUp className="h-3 w-3 text-priority-high" />
+                <span className="text-xs font-medium text-priority-high">高优待办</span>
+              </div>
+              <p className="text-2xs text-text-muted">
+                还有 {tasks.filter(t => t.status !== 'done' && (t.priority === 'urgent' || t.priority === 'high')).length} 个高优先级任务待完成
+              </p>
+            </div>
+          )}
+        </div>
+)}
 
       {/* Image preview overlay */}
       {previewUrl && (

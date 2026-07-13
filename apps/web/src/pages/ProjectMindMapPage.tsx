@@ -20,7 +20,7 @@ export function ProjectMindMapPage() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const { setActiveProject } = useProjectStore()
-  const { loadProjectTasks } = useTaskStore()
+  const { loadProjectTasks, projectTasks } = useTaskStore()
   const { detailSidebarWidth } = useUIStore()
   const [mindmap, setMindmap] = useState<LocalMindmap | null>(null)
   const [loading, setLoading] = useState(true)
@@ -216,6 +216,7 @@ export function ProjectMindMapPage() {
             <NodeDetailSidebar
               nodeData={activeNodeData}
               projectId={id}
+              tasks={projectTasks}
               onUpdateNodeData={handleUpdateNodeData}
             />
           </div>
