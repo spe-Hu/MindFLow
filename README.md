@@ -43,7 +43,7 @@
 
 ```bash
 git clone <repo-url>
-cd Mindflow-workbuddy/src/frontend
+cd Mindflow-workbuddy/apps/web
 npm install
 ```
 
@@ -92,22 +92,25 @@ npx playwright test all-journeys.spec.ts --config playwright.config.ts
 ## 项目结构
 
 ```
-src/frontend/
-  src/
-    components/     # React 组件
-      layout/       # AppLayout, Header, Sidebar, ViewHeader
-      mindmap/      # MindMapCanvas, NodeDetailSidebar
-      task/         # TaskBoard, TaskCard, TaskFilterBar
-      project/      # NewProjectDialog, ProjectList
-      search/       # GlobalSearch (Cmd+K)
-      sync/         # SyncMigrationDialog
-      pomodoro/     # PomodoroTimer
-      ui/           # shadcn/ui 基础组件
-    pages/          # 页面级组件
-    stores/         # Zustand 状态管理
-    lib/            # 工具库 (db, sync, supabase, ai, outline)
-  tests/e2e/        # Playwright E2E 测试
-docs/               # 产品文档 (PRD, SPEC, ARCHITECTURE, UIUX)
+apps/
+  web/                  # 主应用
+    src/
+      components/       # React 组件
+        layout/         # AppLayout, Header, Sidebar, ViewHeader
+        mindmap/        # MindMapCanvas, NodeDetailSidebar
+        task/           # TaskBoard, TaskCard, TaskFilterBar
+        project/        # NewProjectDialog, ProjectList
+        search/         # GlobalSearch (Cmd+K)
+        sync/           # SyncMigrationDialog
+        pomodoro/       # PomodoroTimer
+        ui/             # shadcn/ui 基础组件
+      pages/            # 页面级组件
+      stores/           # Zustand 状态管理
+      lib/              # 工具库 (db, sync, supabase, ai, outline)
+  landing/              # 落地页
+  tests/e2e/            # Playwright E2E 测试
+docs/                   # 产品文档 (PRD, SPEC, ARCHITECTURE, UIUX, design-prompts)
+supabase/               # Supabase 后端配置与迁移
 ```
 
 ## 文档

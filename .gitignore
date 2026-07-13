@@ -46,3 +46,9 @@ yarn-error.log*
 debug-*.mjs
 debug-*.cjs
 *.diag.mjs
+
+# Automation tool artifacts
+.workbuddy/
+
+# Wrangler cache
+.wrangler/
