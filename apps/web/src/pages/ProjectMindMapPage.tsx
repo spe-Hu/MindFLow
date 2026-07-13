@@ -140,7 +140,7 @@ export function ProjectMindMapPage() {
   if (!id) return null
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       <ViewHeader
         projectId={id}
         zoom={zoom}
@@ -149,25 +149,32 @@ export function ProjectMindMapPage() {
         onZoomReset={() => canvasRef.current?.resetZoom()}
         onShare={handleShare}
       />
-      <div className="flex-1 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-full text-text-muted text-sm">
-            加载思维导图中…
+      <div className="flex-1 overflow-hidden relative">
+        {/* MindMapCanvas 始终挂载，避免切换项目时重新创建实例导致闪烁 */}
+        <MindMapCanvas
+          ref={canvasRef}
+          projectId={id}
+          mindmap={mindmap}
+          onDataChange={handleDataChange}
+          onViewStateChange={handleViewStateChange}
+          highlightNodeUid={highlightNodeUid}
+          onZoomChange={setZoom}
+        />
+        {/* Loading 遮罩层：只在加载时显示，不卸载 canvas */}
+        {loading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg-primary/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3">
+              {/* Spinner */}
+              <div className="h-8 w-8 rounded-full border-2 border-primary-subtle border-t-primary-600 animate-spin" />
+              <span className="text-sm text-text-muted">加载思维导图中…</span>
+            </div>
           </div>
-        ) : !mindmap ? (
-          <div className="flex items-center justify-center h-full text-text-muted text-sm">
-            暂无思维导图数据
+        )}
+        {/* 无数据遮罩：只在无数据时覆盖，不卸载 canvas */}
+        {!loading && !mindmap && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg-primary/80 backdrop-blur-sm">
+            <span className="text-sm text-text-muted">暂无思维导图数据</span>
           </div>
-        ) : (
-          <MindMapCanvas
-            ref={canvasRef}
-            projectId={id}
-            mindmap={mindmap}
-            onDataChange={handleDataChange}
-            onViewStateChange={handleViewStateChange}
-            highlightNodeUid={highlightNodeUid}
-            onZoomChange={setZoom}
-          />
         )}
       </div>
     </div>
