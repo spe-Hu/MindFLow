@@ -33,7 +33,7 @@ const NAV_SECTIONS = [
 ] as const
 
 export function SettingsPage() {
-  const { theme, setTheme, compactMode, toggleCompactMode, sidebarWidth, setSidebarWidth } = useUIStore()
+  const { theme, setTheme, compactMode, toggleCompactMode, sidebarWidth, setSidebarWidth, autoOpenSidebar, toggleAutoOpenSidebar } = useUIStore()
   const { user, logout } = useAuthStore()
   const { archivedProjects, loadArchivedProjects, unarchiveProject, removeProject } = useProjectStore()
   const [activeSection, setActiveSection] = useState<string>('account')
@@ -564,6 +564,15 @@ export function SettingsPage() {
                   <p className="text-xs text-text-muted mt-1">列表行高从 48px 降至 36px，节省屏幕空间</p>
                 </div>
                 <Switch checked={compactMode} onCheckedChange={toggleCompactMode} />
+              </div>
+              <Separator />
+              {/* 自动打开节点详情 */}
+              <div className="flex items-center justify-between gap-6">
+                <div>
+                  <Label className="text-sm font-medium text-text-primary block">点击节点自动打开详情</Label>
+                  <p className="text-xs text-text-muted mt-1">选中思维导图节点时自动弹出右侧详情面板</p>
+                </div>
+                <Switch checked={autoOpenSidebar} onCheckedChange={toggleAutoOpenSidebar} />
               </div>
             </div>
           </section>

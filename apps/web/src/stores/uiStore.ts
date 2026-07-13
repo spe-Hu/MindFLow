@@ -12,6 +12,12 @@ interface UIState {
   sidebarWidth: number
   setSidebarWidth: (v: number) => void
 
+  // Node detail sidebar
+  autoOpenSidebar: boolean
+  toggleAutoOpenSidebar: () => void
+  detailSidebarWidth: number
+  setDetailSidebarWidth: (v: number) => void
+
   // Dialogs
   isNewProjectDialogOpen: boolean
   setNewProjectDialogOpen: (v: boolean) => void
@@ -45,6 +51,11 @@ export const useUIStore = create<UIState>()(
       sidebarWidth: 240,
       setSidebarWidth: (v) => set({ sidebarWidth: v }),
 
+      autoOpenSidebar: true,
+      toggleAutoOpenSidebar: () => set((s) => ({ autoOpenSidebar: !s.autoOpenSidebar })),
+      detailSidebarWidth: 400,
+      setDetailSidebarWidth: (v) => set({ detailSidebarWidth: Math.min(Math.max(v, 280), 640) }),
+
       isNewProjectDialogOpen: false,
       setNewProjectDialogOpen: (v) => set({ isNewProjectDialogOpen: v }),
 
@@ -69,6 +80,8 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         sidebarWidth: state.sidebarWidth,
+        autoOpenSidebar: state.autoOpenSidebar,
+        detailSidebarWidth: state.detailSidebarWidth,
         theme: state.theme,
         compactMode: state.compactMode,
         projectViews: state.projectViews,

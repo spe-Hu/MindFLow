@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { devLog, devError, devWarn } from '@/lib/devConsole'
 import { CheckSquare, Square, CalendarDays, LayoutTemplate, Network, GitBranch, X, PanelRight, Download, Image, FileText, FileCode, FileInput, Trash2, ChevronsDown, ChevronsUp } from 'lucide-react'
 import { NodeDetailSidebar } from './NodeDetailSidebar'
+import { useUIStore } from '@/stores/uiStore'
 import { toast } from 'sonner'
 
 // 注册插件
@@ -279,6 +280,14 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const nodeData = (node as any)?.nodeData?.data || {}
       setActiveNodeData(node ? (nodeData as Record<string, unknown>) : null)
+
+      // 点击节点自动打开侧边栏（如果设置开启）
+      if (node) {
+        const { autoOpenSidebar } = useUIStore.getState()
+        if (autoOpenSidebar) {
+          setDetailOpen(true)
+        }
+      }
 
       if (node && containerRef.current) {
         try {

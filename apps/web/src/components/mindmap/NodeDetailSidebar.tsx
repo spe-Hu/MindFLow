@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { safeLinkUrl } from '@/lib/sanitize'
 import type { LocalTask, AttachmentItem } from '@/lib/db'
 import { upsertTask } from '@/lib/db'
 import { usePomodoroStore } from '@/stores/pomodoroStore'
+import { useUIStore } from '@/stores/uiStore'
 import {
   FileText,
   Pencil,
@@ -266,6 +267,33 @@ export function NodeDetailSidebar({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const pomodoro = usePomodoroStore()
+  const { detailSidebarWidth, setDetailSidebarWidth } = useUIStore()
+
+  // 拖拽调整宽度
+  const handleResizeDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+      const startX = e.clientX
+      const startW = detailSidebarWidth
+      const onMove = (me: MouseEvent) => {
+        const delta = startX - me.clientX
+        const newW = Math.min(Math.max(startW + delta, 280), 640)
+        setDetailSidebarWidth(newW)
+      }
+      const onUp = () => {
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup', onUp)
+      }
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    },
+    [detailSidebarWidth, setDetailSidebarWidth]
+  )
 
   const text = String(nodeData?.text || '')
   const uid = String(nodeData?.uid || '')
@@ -447,22 +475,32 @@ export function NodeDetailSidebar({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[400px] sm:max-w-[400px] p-0 gap-0"
+        className="h-full p-0 gap-0 border-l border-border-default [&>button]:right-3 !max-w-none"
+        style={{ width: detailSidebarWidth }}
         onPaste={handlePaste}
       >
-        <SheetHeader className="px-4 pt-4 pb-2 border-b border-border-default shrink-0">
+        {/* 拖拽宽度手柄 */}
+        <div
+          className="absolute top-0 left-0 h-full w-4 -translate-x-1/2 z-[60] flex items-center justify-center cursor-ew-resize group"
+          onMouseDown={handleResizeDown}
+          title="拖拽调整宽度"
+        >
+          <div className="h-8 w-1 rounded-full bg-border-default group-hover:bg-border-hover transition-colors" />
+        </div>
+        {/* 头部信息 */}
+        <div className="px-4 pt-4 pb-2 border-b border-border-default shrink-0">
           <div className="flex items-start gap-2">
             <div className="mt-0.5 shrink-0">
               <AlignLeft className="h-4 w-4 text-text-muted" />
             </div>
-            <div className="min-w-0">
-              <SheetTitle className="text-sm font-medium truncate leading-tight">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-medium truncate leading-tight">
                 {text || '未命名节点'}
-              </SheetTitle>
+              </h3>
               <p className="text-2xs text-text-muted font-mono mt-0.5 truncate">uid: {uid || '-'}</p>
             </div>
           </div>
-        </SheetHeader>
+        </div>
 
         <Tabs
           value={activeTab}
