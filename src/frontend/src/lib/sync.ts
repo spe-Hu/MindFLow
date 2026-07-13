@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { devLog } from '@/lib/devConsole'
+import { devLog, devWarn } from '@/lib/devConsole'
 import { useAuthStore } from '@/stores/authStore'
 import type {
   LocalProject,
@@ -47,13 +47,12 @@ export async function syncProjectToCloud(project: LocalProject): Promise<void> {
     is_archived: project.is_archived,
     version: project.version,
     last_opened_at: project.last_opened_at?.toISOString() ?? new Date().toISOString(),
-    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
 
   const { error } = await (supabase.from('projects').upsert(payload as any, { onConflict: 'id' }) as any)
   if (error) {
-    console.error('Sync project failed:', error)
+    devWarn('Sync project failed:', error)
     throw new Error(`项目 "${project.name}" 同步失败: ${error.message}`)
   }
 }
@@ -61,7 +60,7 @@ export async function syncProjectToCloud(project: LocalProject): Promise<void> {
 export async function deleteProjectFromCloud(projectId: string): Promise<void> {
   if (!getUserId() || !isOnline()) return
   const { error } = await (supabase.from('projects').delete().eq('id', projectId) as any)
-  if (error) console.error('Delete project from cloud failed:', error)
+  if (error) devWarn('Delete project from cloud failed:', error)
 }
 
 // --------------------------------------------
@@ -87,7 +86,7 @@ export async function syncMindmapToCloud(mindmap: LocalMindmap): Promise<void> {
 
   const { error } = await (supabase.from('mindmaps').upsert(payload as any, { onConflict: 'id' }) as any)
   if (error) {
-    console.error('Sync mindmap failed:', error)
+    devWarn('Sync mindmap failed:', error)
     throw new Error(`思维导图同步失败: ${error.message}`)
   }
 }
@@ -95,7 +94,7 @@ export async function syncMindmapToCloud(mindmap: LocalMindmap): Promise<void> {
 export async function deleteMindmapFromCloud(mindmapId: string): Promise<void> {
   if (!getUserId() || !isOnline()) return
   const { error } = await (supabase.from('mindmaps').delete().eq('id', mindmapId) as any)
-  if (error) console.error('Delete mindmap from cloud failed:', error)
+  if (error) devWarn('Delete mindmap from cloud failed:', error)
 }
 
 // --------------------------------------------
@@ -134,7 +133,7 @@ export async function syncTaskToCloud(task: LocalTask): Promise<void> {
 
   const { error } = await (supabase.from('tasks').upsert(payload as any, { onConflict: 'id' }) as any)
   if (error) {
-    console.error('Sync task failed:', error)
+    devWarn('Sync task failed:', error)
     throw new Error(`任务 "${task.title}" 同步失败: ${error.message}`)
   }
 }
@@ -142,7 +141,7 @@ export async function syncTaskToCloud(task: LocalTask): Promise<void> {
 export async function deleteTaskFromCloud(taskId: string): Promise<void> {
   if (!getUserId() || !isOnline()) return
   const { error } = await (supabase.from('tasks').delete().eq('id', taskId) as any)
-  if (error) console.error('Delete task from cloud failed:', error)
+  if (error) devWarn('Delete task from cloud failed:', error)
 }
 
 // --------------------------------------------

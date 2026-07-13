@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import { devLog } from '@/lib/devConsole'
+import { devLog, devWarn } from '@/lib/devConsole'
 import {
   syncProjectToCloud,
   syncMindmapToCloud,
@@ -99,12 +99,12 @@ export async function getAllTasks(): Promise<LocalTask[]> {
 
 export async function upsertTask(task: LocalTask): Promise<void> {
   await db.tasks.put(task)
-  await syncTaskToCloud(task).catch(() => { /* ignore offline */ })
+  await syncTaskToCloud(task).catch((e) => { devWarn('[DB] sync task failed:', e) })
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
   await db.tasks.delete(taskId)
-  await deleteTaskFromCloud(taskId).catch(() => { /* ignore offline */ })
+  await deleteTaskFromCloud(taskId).catch((e) => { devWarn('[DB] delete task from cloud failed:', e) })
 }
 
 /** Update task in IndexedDB and sync status/priority back to the mindmap tree node */
@@ -167,7 +167,7 @@ export async function updateTaskWithMindmapSync(
       tree_data: tree,
       version: mindmap.version + 1,
     })
-    await syncMindmapToCloud(updatedMindmap).catch(() => { /* ignore offline */ })
+    await syncMindmapToCloud(updatedMindmap).catch((e) => { devWarn('[DB] sync mindmap failed:', e) })
   }
 }
 
@@ -185,7 +185,7 @@ export async function getRecentProjects(limit = 4): Promise<LocalProject[]> {
 
 export async function upsertProject(project: LocalProject): Promise<void> {
   await db.projects.put(project)
-  await syncProjectToCloud(project).catch(() => { /* ignore offline */ })
+  await syncProjectToCloud(project).catch((e) => { devWarn('[DB] sync project failed:', e) })
 }
 
 export async function deleteProject(projectId: string): Promise<void> {
@@ -194,7 +194,7 @@ export async function deleteProject(projectId: string): Promise<void> {
     await db.mindmaps.where('project_id').equals(projectId).delete()
     await db.tasks.where('project_id').equals(projectId).delete()
   })
-  await deleteProjectFromCloud(projectId).catch(() => { /* ignore offline */ })
+  await deleteProjectFromCloud(projectId).catch((e) => { devWarn('[DB] delete project from cloud failed:', e) })
 }
 
 // --------------------------------------------------
@@ -250,7 +250,7 @@ export async function syncTasksFromTree(
 
   // NEW: 同步 tasks 到云端（已登录 + 在线时）
   for (const task of tasks) {
-    await syncTaskToCloud(task).catch(() => { /* 离线或无登录态时静默跳过 */ })
+    await syncTaskToCloud(task).catch((e) => { devWarn('[DB] sync task failed:', e) })
   }
 }
 

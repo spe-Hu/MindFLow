@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '@/lib/supabase'
+import { devWarn } from '@/lib/devConsole'
 import type { Session } from '@supabase/supabase-js'
 import type { User as AppUser } from '@/types/supabase'
 
@@ -66,7 +67,7 @@ export const useAuthStore = create<AuthState>()(
                   .maybeSingle()
                 userData = newData
               } else {
-                console.error('[Auth] Failed to auto-create user profile:', insertErr)
+                devWarn('[Auth] Failed to auto-create user profile:', insertErr)
               }
             }
 
@@ -127,7 +128,7 @@ export const useAuthStore = create<AuthState>()(
                   .maybeSingle()
                 userData = newData
               } else {
-                console.error('[Auth] Failed to auto-create user profile on login:', insertErr)
+                devWarn('[Auth] Failed to auto-create user profile on login:', insertErr)
               }
             }
 

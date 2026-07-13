@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { LocalProject } from '@/lib/db'
 import { db, getProjects, getRecentProjects, upsertProject, deleteProject } from '@/lib/db'
+import { devWarn } from '@/lib/devConsole'
 
 interface ProjectState {
   projects: LocalProject[]
@@ -47,7 +48,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const list = await getRecentProjects(4)
       set({ recentProjects: list })
     } catch (err) {
-      console.error('Failed to load recent projects:', err)
+      devWarn('Failed to load recent projects:', err)
     }
   },
 
@@ -61,7 +62,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         .sort((a, b) => a.sort_order - b.sort_order)
       set({ archivedProjects: list })
     } catch (err) {
-      console.error('Failed to load archived projects:', err)
+      devWarn('Failed to load archived projects:', err)
     }
   },
 

@@ -8,6 +8,7 @@
 // ============================================
 
 import { supabase } from '@/lib/supabase'
+import { devWarn } from '@/lib/devConsole'
 
 function generateToken(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -119,7 +120,7 @@ export async function getProjectSharedLinks(projectId: string): Promise<SharedLi
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.warn('[share] getProjectSharedLinks failed:', error)
+    devWarn('[share] getProjectSharedLinks failed:', error)
     return []
   }
   return (data || []) as SharedLink[]

@@ -8,6 +8,7 @@
 
 import { createNode, applyTemplate, getTemplateById } from './templates'
 import { db } from './db'
+import { devWarn } from './devConsole'
 
 export interface AIGenerateOptions {
   theme: string
@@ -210,7 +211,7 @@ async function callLLMForMindMap(theme: string, cfg: AIConfig): Promise<Record<s
     })
 
     if (!resp.ok) {
-      console.warn('[AI MindMap] LLM API error:', resp.status, await resp.text())
+      devWarn('[AI MindMap] LLM API error:', resp.status, await resp.text())
       return null
     }
 
@@ -223,7 +224,7 @@ async function callLLMForMindMap(theme: string, cfg: AIConfig): Promise<Record<s
     const parsed = JSON.parse(cleaned) as Record<string, unknown>
     return parsed
   } catch (err) {
-    console.warn('[AI MindMap] LLM call failed:', err)
+    devWarn('[AI MindMap] LLM call failed:', err)
     return null
   }
 }

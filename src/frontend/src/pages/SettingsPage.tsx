@@ -12,6 +12,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { db, getStorageStats, runHealthCheck, fixHealthIssues, type StorageStats, type HealthIssue } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import { migrateLocalDataToCloud, fetchAllFromCloud } from '@/lib/sync'
+import { devWarn } from '@/lib/devConsole'
 import {
   User, Palette, Cloud, Database, Keyboard, Sparkles,
   Download, Upload, Trash2, LogOut, Loader2, RotateCcw,
@@ -141,7 +142,7 @@ export function SettingsPage() {
       await (supabase.from('users').update as any)(payload).eq('id', user.id)
       useAuthStore.setState({ user: { ...user, display_name: displayName, username } })
     } catch (err) {
-      console.error('Save profile failed:', err)
+      devWarn('Save profile failed:', err)
     } finally {
       setIsSaving(false)
     }
@@ -247,7 +248,7 @@ export function SettingsPage() {
       await useProjectStore.getState().loadProjects()
       toast.success('导入成功', { description: `已导入 ${data.projects.length} 个项目` })
     } catch (err) {
-      console.error('Import failed:', err)
+      devWarn('Import failed:', err)
       toast.error('导入失败', { description: err instanceof Error ? err.message : '请检查文件格式是否正确' })
     } finally {
       setIsImporting(false)

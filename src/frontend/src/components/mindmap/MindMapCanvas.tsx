@@ -7,7 +7,7 @@ import Select from 'simple-mind-map/src/plugins/Select.js'
 import type { LocalMindmap } from '@/lib/db'
 import { syncTasksFromTree } from '@/lib/db'
 import { cn } from '@/lib/utils'
-import { devLog, devError } from '@/lib/devConsole'
+import { devLog, devError, devWarn } from '@/lib/devConsole'
 import { CheckSquare, Square, CalendarDays, LayoutTemplate, Network, GitBranch, X, PanelRight, Download, Image, FileText, FileCode, FileInput, Trash2, ChevronsDown, ChevronsUp } from 'lucide-react'
 import { NodeDetailSidebar } from './NodeDetailSidebar'
 import { toast } from 'sonner'
@@ -91,7 +91,7 @@ function scheduleTasksSync(projectId: string, treeData: Record<string, unknown>)
     try {
       await syncTasksFromTree(projectId, state.latestData)
     } catch (e) {
-      console.warn('[MindMapCanvas] syncTasksFromTree failed:', e)
+      devWarn('[MindMapCanvas] syncTasksFromTree failed:', e)
     } finally {
       taskSyncRunning.delete(projectId)
       // 如果期间又有新的更新,补一次
@@ -414,7 +414,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(instance as any).setData(data)
       } catch (e) {
-        console.error('[MindMapCanvas] setData failed, fallback to reinit:', e)
+        devWarn('[MindMapCanvas] setData failed, fallback to reinit:', e)
         latestTreeRef.current = data
         mindMapRef.current.destroy()
         mindMapRef.current = null
@@ -492,7 +492,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(mindMapRef.current as any).setLayout(layout)
     } catch (e) {
-      console.warn('[MindMapCanvas] setLayout failed, fallback to reinit:', e)
+      devWarn('[MindMapCanvas] setLayout failed, fallback to reinit:', e)
       // fallback: 尝试 safe getData + destroy + reinit
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

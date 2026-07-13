@@ -106,7 +106,7 @@ export const useSyncStore = create<SyncState>((set) => ({
         }
         devLog(`[Sync] Auto-sync complete: ${projects.length} projects, ${mindmaps.length} mindmaps, ${tasks.length} tasks.`)
       } catch (err: any) {
-        console.error('[Sync] Auto-sync failed:', err)
+        devWarn('[Sync] Auto-sync failed:', err)
         set({ status: 'error', lastError: err.message || '同步失败' })
       }
     }, 500)
