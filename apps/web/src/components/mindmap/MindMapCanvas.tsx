@@ -9,8 +9,6 @@ import { syncTasksFromTree } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { devLog, devError, devWarn } from '@/lib/devConsole'
 import { CheckSquare, Square, CalendarDays, LayoutTemplate, Network, GitBranch, X, PanelRight, Download, Image, FileText, FileCode, FileInput, Trash2, ChevronsDown, ChevronsUp } from 'lucide-react'
-import { NodeDetailSidebar } from './NodeDetailSidebar'
-import { useUIStore } from '@/stores/uiStore'
 import { toast } from 'sonner'
 
 // 注册插件
@@ -28,6 +26,7 @@ export interface MindMapCanvasRef {
   zoomOut: () => void
   resetZoom: () => void
   getZoom: () => number
+  updateActiveNode: (updates: Record<string, unknown>) => void
 }
 
 interface MindMapCanvasProps {
@@ -38,6 +37,7 @@ interface MindMapCanvasProps {
   onViewStateChange?: (viewState: Record<string, unknown>) => void
   highlightNodeUid?: string | null
   onZoomChange?: (zoom: number) => void
+  onNodeActive?: (nodeData: Record<string, unknown> | null) => void
 }
 
 const DEFAULT_TREE_DATA = {
@@ -111,6 +111,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
   highlightNodeUid,
   onViewStateChange,
   onZoomChange,
+  onNodeActive,
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mindMapRef = useRef<MindMap | null>(null)
@@ -140,7 +141,6 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
 
   const [activeNodeData, setActiveNodeData] = useState<Record<string, unknown> | null>(null)
   const [activeNodePos, setActiveNodePos] = useState<{ x: number; y: number } | null>(null)
-  const [detailOpen, setDetailOpen] = useState(false)
   const [layout, setLayout] = useState<LayoutKey>(() => {
     const saved = mindmap?.view_state?.layout as LayoutKey
     return AVAILABLE_LAYOUTS.find(l => l.key === saved) ? saved : 'logicalStructure'
@@ -201,6 +201,14 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     getZoom: () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return Math.round(((mindMapRef.current as any)?.view?.scale || 1) * 100)
+    },
+    updateActiveNode: (updates: Record<string, unknown>) => {
+      const instance = mindMapRef.current
+      const node = activeNodeRef.current
+      if (!instance || !node) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(instance as any).execCommand('SET_NODE_DATA', node, updates)
+      setActiveNodeData(prev => (prev ? { ...prev, ...updates } : prev))
     },
   }), [onZoomChangeRef])
 
@@ -279,15 +287,9 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       // node is the renderer node object, node.nodeData.data holds the real data
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const nodeData = (node as any)?.nodeData?.data || {}
-      setActiveNodeData(node ? (nodeData as Record<string, unknown>) : null)
-
-      // 点击节点自动打开侧边栏（如果设置开启）
-      if (node) {
-        const { autoOpenSidebar } = useUIStore.getState()
-        if (autoOpenSidebar) {
-          setDetailOpen(true)
-        }
-      }
+      const data = node ? (nodeData as Record<string, unknown>) : null
+      setActiveNodeData(data)
+      onNodeActive?.(data)
 
       if (node && containerRef.current) {
         try {
@@ -309,11 +311,6 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       } else {
         setActiveNodePos(null)
       }
-    })
-
-    // Double-click to open detail sidebar
-    instance.on('node_dbclick', () => {
-      setDetailOpen(true)
     })
 
     // Register custom T key shortcut via instance.keyCommand
@@ -555,15 +552,6 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
 
   const isTask = Boolean(activeNodeData?._isTask)
 
-  const handleUpdateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const instance = mindMapRef.current
-    const node = activeNodeRef.current
-    if (!instance || !node) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(instance as any).execCommand('SET_NODE_DATA', node, updates)
-    setActiveNodeData(prev => (prev ? { ...prev, ...updates } : prev))
-  }, [])
-
   const handleExport = useCallback(async (type: 'png' | 'svg' | 'md' | 'pdf') => {
     const instance = mindMapRef.current
     if (!instance) return
@@ -605,13 +593,6 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
           className="absolute z-50 flex flex-col gap-1 bg-bg-surface border border-border-default rounded-lg shadow-md p-1.5 animate-in fade-in zoom-in-95 duration-150"
           style={{ left: activeNodePos.x, top: activeNodePos.y }}
         >
-          <button
-            onClick={() => setDetailOpen(true)}
-            className="flex items-center gap-2 h-8 px-3 rounded-md text-xs font-medium transition-colors whitespace-nowrap text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
-          >
-            <PanelRight className="h-3.5 w-3.5" />
-            查看详情
-          </button>
           <button
             onClick={handleToggleTask}
             className={cn(
@@ -821,14 +802,6 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         <span className="text-[10px] text-text-muted">Delete 删除</span>
       </div>
 
-      {/* Node Detail Sidebar */}
-      <NodeDetailSidebar
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        nodeData={activeNodeData}
-        projectId={projectId}
-        onUpdateNodeData={handleUpdateNodeData}
-      />
     </div>
   )
 })

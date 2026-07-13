@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -243,16 +242,12 @@ const PRIORITY_COLOR: Record<string, string> = {
 // --------------------------------------------------
 
 interface NodeDetailSidebarProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
   nodeData: Record<string, unknown> | null
   projectId: string
   onUpdateNodeData: (updates: Record<string, unknown>) => void
 }
 
 export function NodeDetailSidebar({
-  open,
-  onOpenChange,
   nodeData,
   projectId,
   onUpdateNodeData,
@@ -316,10 +311,10 @@ export function NodeDetailSidebar({
 
   // Sync draft when note from nodeData changes
   useEffect(() => {
-    if (open && !noteEditMode) {
+    if (!noteEditMode) {
       setNoteDraft(note)
     }
-  }, [note, open, noteEditMode])
+  }, [note, noteEditMode])
 
   const handleSaveNote = useCallback(() => {
     onUpdateNodeData({ _note: noteDraft })
@@ -472,14 +467,8 @@ export function NodeDetailSidebar({
   const priorityColor = PRIORITY_COLOR[(nodeData?._priority as string) || 'medium']
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="h-full p-0 gap-0 border-l border-border-default [&>button]:right-3 !max-w-none"
-        style={{ width: detailSidebarWidth }}
-        onPaste={handlePaste}
-      >
-        {/* 拖拽宽度手柄 */}
+    <div className="h-full flex flex-col relative" onPaste={handlePaste}>
+      {/* 拖拽宽度手柄 */}
         <div
           className="absolute top-0 left-0 h-full w-4 -translate-x-1/2 z-[60] flex items-center justify-center cursor-ew-resize group"
           onMouseDown={handleResizeDown}
@@ -877,7 +866,6 @@ export function NodeDetailSidebar({
             </div>
           </TabsContent>
         </Tabs>
-      </SheetContent>
 
       {/* Image preview overlay */}
       {previewUrl && (
@@ -899,6 +887,6 @@ export function NodeDetailSidebar({
           />
         </div>
       )}
-    </Sheet>
+    </div>
   )
 }
