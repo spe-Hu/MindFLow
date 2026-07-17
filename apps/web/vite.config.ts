@@ -48,7 +48,6 @@ export default defineConfig({
             },
           },
         ],
-        // Skip waiting so that the new SW activates immediately
         skipWaiting: true,
         clientsClaim: true,
       },
@@ -58,5 +57,11 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    exclude: ['node_modules', 'dist'],
   },
 })

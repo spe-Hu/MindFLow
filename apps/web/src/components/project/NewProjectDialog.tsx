@@ -90,6 +90,7 @@ export function NewProjectDialog() {
       is_archived: false,
       version: 1,
       last_opened_at: new Date(),
+      project_type: 'cloud',
     }
 
     await addProject(project)

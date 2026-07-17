@@ -234,6 +234,7 @@ export async function fetchAllFromCloud(): Promise<{
     version: p.version ?? 1,
     last_opened_at: p.last_opened_at ? new Date(p.last_opened_at) : undefined,
     user_id: p.user_id,
+    project_type: p.project_type ?? 'cloud',
   }))
 
   const mindmaps: LocalMindmap[] = (mindmapsData ?? []).map((m: any) => ({

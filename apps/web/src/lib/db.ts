@@ -21,6 +21,14 @@ export interface LocalProject {
   version: number
   last_opened_at?: Date
   user_id?: string
+  /** 项目来源类型 */
+  project_type: 'cloud' | 'obsidian'
+  /** 本地文件相对路径（仅 obsidian 项目） */
+  local_path?: string
+  /** 关联的本地目录配置 ID（仅 obsidian 项目） */
+  local_dir_id?: string
+  /** 最后同步时间（仅 obsidian 项目，用于 LWW 冲突判断） */
+  last_synced_at?: Date
 }
 
 export interface LocalMindmap {
@@ -83,6 +91,24 @@ class MindFlowDB extends Dexie {
       tasks: 'id, project_id, node_uid, title, status, priority, due_date',
       settings: 'key',
     })
+    this.version(3)
+      .stores({
+        projects: 'id, project_type, name, sort_order, is_archived, last_opened_at',
+        mindmaps: 'id, project_id',
+        tasks: 'id, project_id, node_uid, title, status, priority, due_date',
+        settings: 'key',
+      })
+      .upgrade(async (tx) => {
+        // Migrate existing projects: default project_type to 'cloud'
+        await tx
+          .table('projects')
+          .toCollection()
+          .modify((project) => {
+            if (!project.project_type) {
+              project.project_type = 'cloud'
+            }
+          })
+      })
   }
 }
 
