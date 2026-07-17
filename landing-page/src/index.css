@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #FFFFFF;
+    color: #333333;
+    overflow-x: hidden;
+    line-height: 1.6;
+  }
+}
+
+@layer components {
+  .hero-mock-frame {
+    position: relative;
+    width: 100%;
+    max-width: 650px;
+    height: 462px;
+    container-type: inline-size;
+    filter: drop-shadow(0 18px 28px rgba(70, 54, 126, 0.04));
+  }
+
+  .hero-mock-inner {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform-origin: top right;
+  }
+
+  @container (max-width: 620px) {
+    .hero-mock-frame { height: 416px; }
+    .hero-mock-inner { transform: scale(0.9); }
+  }
+
+  @container (max-width: 560px) {
+    .hero-mock-frame { height: 370px; }
+    .hero-mock-inner { transform: scale(0.8); }
+  }
+
+  @container (max-width: 500px) {
+    .hero-mock-frame { height: 324px; }
+    .hero-mock-inner { transform: scale(0.7); }
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

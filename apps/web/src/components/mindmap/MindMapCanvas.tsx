@@ -138,6 +138,8 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
   const onZoomChangeRef = useRef(onZoomChange)
   onZoomChangeRef.current = onZoomChange
   const prevProjectIdRef = useRef(projectId)
+  // 防止同一 projectId 的重复 setData 触发多次闪烁
+  const setDataGuardRef = useRef<{ projectId: string; timer: ReturnType<typeof setTimeout> | null }>({ projectId: '', timer: null })
 
   const [activeNodeData, setActiveNodeData] = useState<Record<string, unknown> | null>(null)
   const [activeNodePos, setActiveNodePos] = useState<{ x: number; y: number } | null>(null)
@@ -291,26 +293,8 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       setActiveNodeData(data)
       onNodeActive?.(data)
 
-      if (node && containerRef.current) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const group = (node as any).group
-          if (group && group.node) {
-            const rect = group.node.getBoundingClientRect()
-            const containerRect = containerRef.current.getBoundingClientRect()
-            setActiveNodePos({
-              x: rect.right - containerRect.left + 8,
-              y: rect.top - containerRect.top,
-            })
-          } else {
-            setActiveNodePos(null)
-          }
-        } catch {
-          setActiveNodePos(null)
-        }
-      } else {
-        setActiveNodePos(null)
-      }
+      // NOTE: 不再自动计算并显示悬浮操作面板（选中节点时弹出的浮动工具栏），
+      // 避免遮挡思维导图整体观察。用户可通过键盘快捷键操作节点。
     })
 
     // Register custom T key shortcut via instance.keyCommand
@@ -349,20 +333,31 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       ;(window as any).__mindMap = instance
     }
 
-    // 延迟 fit: 等 DOM 完成布局 + 节点全部挂载,再用 try/catch 兜底
-    // 避免 simple-mind-map 内部 View.fit → rbox 报错
+    // 延迟 fit: 等 DOM 完成布局 + 节点全部挂载，再让整图居中并自适应缩放。
+    // 避免 simple-mind-map 内部 View.fit → rbox 报错，用 try/catch 兜底。
     const safeFit = () => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(instance as any)?.view?.fit?.()
       } catch {
-        // ignore: 节点 SVG <g> 尚未稳定,跳过本次 fit
+        // ignore: 节点 SVG <g> 尚未稳定，跳过本次 fit
       }
     }
-    // 多重延迟,确保 root / 子节点都完成渲染
+    const showCanvas = () => {
+      if (containerRef.current) {
+        containerRef.current.style.visibility = 'visible'
+      }
+    }
+    // 用 rAF 链替代固定延时：等浏览器完成一帧渲染后立刻 fit，
+    // 再补一次 50ms 后备确保 SVG 节点 bbox 已稳定。
     requestAnimationFrame(() => {
-      setTimeout(safeFit, 50)
-      setTimeout(safeFit, 300)
+      requestAnimationFrame(() => {
+        safeFit()
+        requestAnimationFrame(() => {
+          safeFit()
+          showCanvas()
+        })
+      })
     })
 
     // Handle highlight node from global task navigation (init-time only)
@@ -405,6 +400,9 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     if (!mindMapRef.current) return
     const isProjectSwitch = prevProjectIdRef.current !== projectId
     if (!isProjectSwitch && mindmapRef.current === mindmap) return
+    // 避免 onDataChange 回写 mindmap prop 触发不必要的 setData + 闪烁。
+    // 只有在项目切换或 instance 仍在使用默认数据（首次加载）时才执行。
+    if (!isProjectSwitch && !usingDefaultDataRef.current) return
     prevProjectIdRef.current = projectId
 
     const instance = mindMapRef.current
@@ -413,6 +411,17 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     devLog('[MindMapCanvas] data update — projectId:', projectId, '| rootText:', rootText, '| isProjectSwitch:', isProjectSwitch)
 
     if (mindmap?.tree_data) {
+      // 防抖 guard：同一 projectId 在 200ms 内多次触发只保留最后一次，
+      // 避免父组件 mindmap prop 多次更新导致反复闪烁。
+      if (setDataGuardRef.current.projectId === projectId) {
+        if (setDataGuardRef.current.timer) clearTimeout(setDataGuardRef.current.timer)
+      } else {
+        setDataGuardRef.current.projectId = projectId
+      }
+      // 切换项目前先隐藏画布，避免用户看到未 fit 的乱序状态
+      if (containerRef.current) {
+        containerRef.current.style.visibility = 'hidden'
+      }
       // Reset flags before setData so the auto data_change doesn't skip
       initialChangeRef.current = true
       usingDefaultDataRef.current = false
@@ -427,6 +436,24 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         initMindMap()
         return
       }
+      // 切换项目后让整图居中并自适应缩放，fit 完成后淡入显示。
+      // 用 rAF 链 + 50ms 后备替代原来的 600ms 固定延时，消除"一直在闪"的体感。
+      setDataGuardRef.current.timer = setTimeout(() => {
+        setDataGuardRef.current.timer = null
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ;(instance as any)?.view?.fit?.()
+            } catch {
+              // ignore
+            }
+            if (containerRef.current) {
+              containerRef.current.style.visibility = 'visible'
+            }
+          })
+        })
+      }, 50)
     }
 
     // Restore layout preference when switching projects
@@ -585,7 +612,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
 
   return (
     <div className={cn('w-full h-full relative dot-grid bg-bg-primary transition-colors duration-300', className)}>
-      <div ref={containerRef} className="w-full h-full outline-none" />
+      <div ref={containerRef} className="w-full h-full outline-none" style={{ visibility: 'hidden' }} />
 
       {/* Floating toolbar for selected node */}
       {activeNodeData && activeNodePos && (
