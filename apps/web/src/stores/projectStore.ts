@@ -22,6 +22,7 @@ interface ProjectState {
   archiveProject: (id: string) => Promise<void>
   unarchiveProject: (id: string) => Promise<void>
   reorderProjects: (orderedIds: string[]) => Promise<void>
+  getProjectsByType: (type: 'cloud' | 'obsidian') => LocalProject[]
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -36,7 +37,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const list = await getProjects()
-      set({ projects: list.filter((p) => !p.is_archived), isLoading: false })
+      set({ projects: list.filter((p) => !p.is_archived && (p.project_type === 'cloud' || !p.project_type)), isLoading: false })
       await get().loadRecentProjects()
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to load projects', isLoading: false })
@@ -52,13 +53,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
+  getProjectsByType: (type) => {
+    return get().projects.filter((p) => p.project_type === type || (type === 'cloud' && !p.project_type))
+  },
+
   loadArchivedProjects: async () => {
     try {
       // IndexedDB 存的是原生 boolean (true/false),Dexie 的 .equals(1) 找不到 boolean true
       // 用 filter 显式过滤 boolean 值更可靠
       const all = await db.projects.toArray()
       const list = all
-        .filter((p) => p.is_archived === true)
+        .filter((p) => p.is_archived === true && (p.project_type === 'cloud' || !p.project_type))
         .sort((a, b) => a.sort_order - b.sort_order)
       set({ archivedProjects: list })
     } catch (err) {

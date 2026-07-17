@@ -6,7 +6,12 @@
 
 | 编号 | 主题 | ADR | SPEC | Issue | 状态 | 关联模块 |
 |------|------|-----|------|-------|------|----------|
-| OBS-001 | Obsidian 本地思维导图双向同步 | [ADR-0001](adr/0001-local-obsidian-sync.md) | [SPEC](SPEC-Obsidian-Sync.md) | [#1](https://github.com/spe-Hu/MindFLow/issues/1) | ready-for-agent | `smmMdParser`, `localWorkspaceStore`, `localFileSync`, `LocalWorkspacePanel` |
+| OBS-001 | Obsidian 本地思维导图双向同步（总览） | [ADR-0001](adr/0001-local-obsidian-sync.md) | [SPEC](SPEC-Obsidian-Sync.md) | [#1](https://github.com/spe-Hu/MindFLow/issues/1) | ready-for-agent | 全部 |
+| OBS-01 | smmMdParser 解析引擎 | — | SPEC §2.1 | [#2](https://github.com/spe-Hu/MindFLow/issues/2) | ready-for-agent | `smmMdParser`, `db.ts` |
+| OBS-02 | Local Workspace Core 目录注册 | — | SPEC §2.2,§2.3 | [#3](https://github.com/spe-Hu/MindFLow/issues/3) | ready-for-agent | `localFileSync`, `localWorkspaceStore` |
+| OBS-03 | Sidebar 本地工作空间面板 | — | SPEC §3.3 | [#4](https://github.com/spe-Hu/MindFLow/issues/4) | ready-for-agent | `LocalWorkspacePanel`, `Sidebar` |
+| OBS-04 | 双向同步与 dirty 标记 | — | SPEC §4 | [#5](https://github.com/spe-Hu/MindFLow/issues/5) | ready-for-agent | `localFileSync`, `MindMapCanvas` |
+| OBS-05 | 设置面板与浏览器兼容 | — | SPEC §3.5 | [#6](https://github.com/spe-Hu/MindFLow/issues/6) | ready-for-agent | `SettingsPage` |
 
 ## 文档规范
 

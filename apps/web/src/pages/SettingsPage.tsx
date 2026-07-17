@@ -9,22 +9,27 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useProjectStore } from '@/stores/projectStore'
-import { db, getStorageStats, runHealthCheck, fixHealthIssues, type StorageStats, type HealthIssue } from '@/lib/db'
+import { db } from '@/lib/db'
+import { getStorageStats, runHealthCheck, fixHealthIssues } from '@/lib/storageHealth'
+import type { StorageStats, HealthIssue } from '@/lib/storageHealth'
 import { supabase } from '@/lib/supabase'
 import { migrateLocalDataToCloud, fetchAllFromCloud } from '@/lib/sync'
 import { devWarn } from '@/lib/devConsole'
+import { isFileSystemAccessSupported } from '@/lib/localFileSync'
+import { useLocalWorkspaceStore } from '@/stores/localWorkspaceStore'
 import {
   User, Palette, Cloud, Database, Keyboard, Sparkles,
   Download, Upload, Trash2, LogOut, Loader2, RotateCcw,
   RefreshCw, Wifi, WifiOff, FolderKanban, CheckCircle2,
   AlertTriangle, AlertCircle, Stethoscope, Wrench,
-  FileJson, CalendarClock, Eye, EyeOff,
+  FileJson, CalendarClock, Eye, EyeOff, HardDrive,
 } from 'lucide-react'
 import { loadAIConfig, saveAIConfig, type AIConfig } from '@/lib/aiMindMap'
 import { toast } from 'sonner'
 
 const NAV_SECTIONS = [
   { value: 'account', label: '账户', icon: User },
+  { value: 'local', label: '本地同步', icon: HardDrive },
   { value: 'cloud', label: '云端同步', icon: Cloud },
   { value: 'appearance', label: '外观', icon: Palette },
   { value: 'ai', label: 'AI 助手', icon: Sparkles },
@@ -36,6 +41,7 @@ export function SettingsPage() {
   const { theme, setTheme, compactMode, toggleCompactMode, sidebarWidth, setSidebarWidth, autoOpenSidebar, toggleAutoOpenSidebar } = useUIStore()
   const { user, logout } = useAuthStore()
   const { archivedProjects, loadArchivedProjects, unarchiveProject, removeProject } = useProjectStore()
+  const { dirs, obsidianProjects, syncIntervalMs, setSyncInterval, registerDirectory, unregisterDirectory, syncState } = useLocalWorkspaceStore()
   const [activeSection, setActiveSection] = useState<string>('account')
   const [storageUsed, setStorageUsed] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
@@ -492,6 +498,138 @@ export function SettingsPage() {
                   删除账户
                 </Button>
               </div>
+            </div>
+          </section>
+
+          {/* ===== 本地同步 ===== */}
+          <section ref={(el) => { sectionRefs.current['local'] = el }}>
+            <div className="mb-5">
+              <h3 className="text-lg font-semibold text-text-primary">本地同步</h3>
+              <p className="text-sm text-text-muted mt-1">将 MindFlow 与本地 Obsidian 目录双向同步</p>
+            </div>
+            <div className="bg-bg-surface border border-border-default rounded-xl p-8 space-y-6">
+              {/* 浏览器兼容性 */}
+              {!isFileSystemAccessSupported() && (
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-status-error/10 text-status-error">
+                  <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium">此浏览器不支持本地文件同步</p>
+                    <p className="text-xs mt-0.5">请使用 Chrome、Edge 或其他基于 Chromium 的浏览器以启用此功能。</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 同步状态 */}
+              <div className="flex items-center gap-3 p-4 rounded-lg border border-border-default bg-bg-primary">
+                <div className={cn(
+                  'h-10 w-10 rounded-full flex items-center justify-center shrink-0',
+                  syncState === 'syncing' ? 'bg-primary-100 text-primary-600' :
+                  syncState === 'error' ? 'bg-status-error/10 text-status-error' :
+                  'bg-status-success/10 text-status-success'
+                )}>
+                  {syncState === 'syncing' ? <Loader2 className="h-5 w-5 animate-spin" /> :
+                   syncState === 'error' ? <AlertTriangle className="h-5 w-5" /> :
+                   <CheckCircle2 className="h-5 w-5" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text-primary">
+                    {syncState === 'syncing' ? '正在同步' : syncState === 'error' ? '同步出错' : '已同步'}
+                  </p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    轮询间隔: {syncIntervalMs / 1000} 秒
+                  </p>
+                </div>
+              </div>
+
+              {/* 同步间隔设置 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-text-primary">轮询间隔</Label>
+                <div className="flex items-center gap-3">
+                  {[3000, 5000, 10000, 30000].map((ms) => (
+                    <button
+                      key={ms}
+                      onClick={() => setSyncInterval(ms)}
+                      className={cn(
+                        'h-9 px-3 rounded-lg text-xs font-medium transition-colors border',
+                        syncIntervalMs === ms
+                          ? 'bg-primary-600 text-white border-primary-600'
+                          : 'bg-bg-primary text-text-secondary border-border-default hover:bg-bg-elevated'
+                      )}
+                    >
+                      {ms / 1000}s
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 已注册目录 */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-text-primary">已授权目录</Label>
+                {dirs.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-6 text-center border border-dashed border-border-default rounded-lg">
+                    <HardDrive className="h-5 w-5 text-text-muted" />
+                    <p className="text-xs text-text-muted">暂无已授权的本地目录</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs mt-1"
+                      disabled={!isFileSystemAccessSupported()}
+                      onClick={() => registerDirectory().catch(() => {})}
+                    >
+                      添加目录
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {dirs.map((dir) => {
+                      const projects = Object.values(obsidianProjects).filter((p) => p.local_dir_id === dir.id)
+                      return (
+                        <div key={dir.id} className="flex items-center justify-between p-3 rounded-lg border border-border-default bg-bg-primary">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <FolderKanban className="h-4 w-4 text-text-muted shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-text-primary truncate">{dir.name}</p>
+                              <p className="text-[10px] text-text-muted">{projects.length} 个思维导图</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 text-xs text-status-error hover:bg-status-error/10"
+                            onClick={() => unregisterDirectory(dir.id).catch(() => {})}
+                          >
+                            移除
+                          </Button>
+                        </div>
+                      )
+                    })}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs w-full mt-2"
+                      disabled={!isFileSystemAccessSupported()}
+                      onClick={() => registerDirectory().catch(() => {})}
+                    >
+                      添加目录
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Obsidian 项目列表 */}
+              {Object.keys(obsidianProjects).length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-text-primary">已同步的思维导图</Label>
+                  <div className="flex flex-col gap-1">
+                    {Object.values(obsidianProjects).map((p) => (
+                      <div key={p.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-bg-elevated/40">
+                        <span className="text-xs text-text-secondary truncate">{p.name}</span>
+                        <span className="text-[10px] text-text-muted shrink-0">{p.local_path}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 

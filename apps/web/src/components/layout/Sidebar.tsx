@@ -20,6 +20,8 @@ import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import type { LocalProject } from '@/lib/db'
 import { syncProjectToCloud } from '@/lib/sync'
+import { LocalWorkspacePanel } from '@/components/local/LocalWorkspacePanel'
+import { useLocalWorkspaceStore } from '@/stores/localWorkspaceStore'
 
 /* ============================================================
    Design Tokens
@@ -566,6 +568,13 @@ export function Sidebar() {
               active={isGantt}
               onClick={() => navigate('/gantt')}
             />
+          </div>
+
+          <Separator className="mx-3.5 w-auto" />
+
+          {/* Local Workspace Section */}
+          <div className="px-3 py-2">
+            <LocalWorkspacePanel />
           </div>
 
           <Separator className="mx-3.5 w-auto" />

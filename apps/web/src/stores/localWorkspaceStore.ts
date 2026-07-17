@@ -9,6 +9,7 @@ import type { LocalProject } from '@/lib/db'
 import { db, getProjects, upsertProject, deleteProject } from '@/lib/db'
 import { parseSmmMd } from '@/lib/smmMdParser'
 import { devLog, devWarn } from '@/lib/devConsole'
+import { syncDirtyProjectToLocal, getDirtyProjectIds } from '@/lib/localSyncEngine'
 import {
   requestLocalDirectory,
   scanDirectoryForSmmMd,
@@ -32,6 +33,8 @@ interface LocalWorkspaceState {
   dirs: LocalWorkspaceDir[]
   /** 目录 ID → 扫描到的文件列表 */
   filesByDir: Record<string, ObsidianFile[]>
+  /** 项目 ID → ObsidianFile（反向索引，用于写回） */
+  fileByProjectId: Record<string, ObsidianFile>
   /** 项目 ID → LocalProject（仅 obsidian 项目） */
   obsidianProjects: Record<string, LocalProject>
   /** 是否在扫描中 */
@@ -62,6 +65,8 @@ interface LocalWorkspaceState {
   checkPermissions: () => Promise<Record<string, boolean>>
   /** 设置轮询间隔 */
   setSyncInterval: (ms: number) => void
+  /** 写回所有 dirty 项目 */
+  syncDirtyToLocal: () => Promise<void>
 }
 
 // settings key for persisting directory handles
@@ -87,6 +92,7 @@ function projectIdForFile(dirId: string, relativePath: string): string {
 export const useLocalWorkspaceStore = create<LocalWorkspaceState>((set, get) => ({
   dirs: [],
   filesByDir: {},
+  fileByProjectId: {},
   obsidianProjects: {},
   isScanning: false,
   syncState: 'idle',
@@ -209,7 +215,25 @@ export const useLocalWorkspaceStore = create<LocalWorkspaceState>((set, get) => 
         devWarn('[localWorkspaceStore] Scan errors:', errors)
       }
 
-      set((s) => ({ filesByDir: { ...s.filesByDir, [dirId]: files } }))
+      set((s) => {
+        const nextFileByProjectId = { ...s.fileByProjectId }
+        // Remove old entries for this directory
+        for (const [path] of previousPaths) {
+          if (!currentPaths.has(path)) {
+            const pid = projectIdForFile(dirId, path)
+            delete nextFileByProjectId[pid]
+          }
+        }
+        // Add / update current entries
+        for (const file of files) {
+          const pid = projectIdForFile(dirId, file.relativePath)
+          nextFileByProjectId[pid] = file
+        }
+        return {
+          filesByDir: { ...s.filesByDir, [dirId]: files },
+          fileByProjectId: nextFileByProjectId,
+        }
+      })
 
       // Detect new / removed / updated files
       const previousFiles = state.filesByDir[dirId] || []
@@ -249,6 +273,9 @@ export const useLocalWorkspaceStore = create<LocalWorkspaceState>((set, get) => 
     if (state._syncTimer) return
 
     const timer = setInterval(() => {
+      // 1. Write dirty projects back to local first
+      get().syncDirtyToLocal().catch(() => {})
+      // 2. Scan all directories
       const { dirs } = get()
       for (const dir of dirs) {
         get().scanDirectory(dir.id)
@@ -257,6 +284,26 @@ export const useLocalWorkspaceStore = create<LocalWorkspaceState>((set, get) => 
 
     set({ _syncTimer: timer })
     devLog('[localWorkspaceStore] Auto-sync started, interval:', state.syncIntervalMs, 'ms')
+  },
+
+  syncDirtyToLocal: async () => {
+    if (typeof window === 'undefined') return
+    const { fileByProjectId } = get()
+    const dirtyIds = getDirtyProjectIds()
+    if (dirtyIds.length === 0) return
+
+    for (const pid of dirtyIds) {
+      const file = fileByProjectId[pid]
+      if (!file) {
+        devWarn('[localWorkspaceStore] syncDirtyToLocal: no file for project', pid)
+        continue
+      }
+      try {
+        await syncDirtyProjectToLocal(pid, () => file)
+      } catch (err) {
+        devWarn('[localWorkspaceStore] syncDirtyToLocal failed for', pid, err)
+      }
+    }
   },
 
   stopAutoSync: () => {

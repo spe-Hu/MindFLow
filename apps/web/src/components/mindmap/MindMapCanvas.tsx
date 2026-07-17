@@ -5,10 +5,14 @@ import Export from 'simple-mind-map/src/plugins/Export.js'
 import ExportPDF from 'simple-mind-map/src/plugins/ExportPDF.js'
 import Select from 'simple-mind-map/src/plugins/Select.js'
 import type { LocalMindmap } from '@/lib/db'
-import { syncTasksFromTree } from '@/lib/db'
+import { db } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import { devLog, devError, devWarn } from '@/lib/devConsole'
-import { CheckSquare, Square, CalendarDays, LayoutTemplate, Network, GitBranch, X, PanelRight, Download, Image, FileText, FileCode, FileInput, Trash2, ChevronsDown, ChevronsUp } from 'lucide-react'
+import { scheduleTasksSync } from './taskSyncEngine'
+import { markProjectDirty } from '@/lib/localSyncEngine'
+import { NodeToolbar } from './NodeToolbar'
+import { ExportToolbar } from './ExportToolbar'
+import { LayoutTemplate, Network, GitBranch, ChevronsDown, ChevronsUp } from 'lucide-react'
 import { toast } from 'sonner'
 
 // 注册插件
@@ -64,44 +68,7 @@ function buildMindMapData(mindmap: LocalMindmap | null | undefined): Record<stri
   return mindmap.tree_data as Record<string, unknown>
 }
 
-// 简单防抖 + 互斥锁: simple-mind-map 在快速键入 (Tab + keyboard.type + Enter)
-// 时会在毫秒级触发多次 data_change,导致 syncTasksFromTree 并发执行。
-// 这里在 module 级别维护一个 pending 最新数据 + 互斥锁,
-// 保证最终只有一次同步生效 (Bug 5)。
-const taskSyncState = new Map<string, { latestData: Record<string, unknown>; timer: ReturnType<typeof setTimeout> | null }>()
-const taskSyncRunning = new Set<string>()
-
-function scheduleTasksSync(projectId: string, treeData: Record<string, unknown>) {
-  let state = taskSyncState.get(projectId)
-  if (!state) {
-    state = { latestData: treeData, timer: null }
-    taskSyncState.set(projectId, state)
-  } else {
-    state.latestData = treeData
-    if (state.timer) clearTimeout(state.timer)
-  }
-
-  state.timer = setTimeout(async () => {
-    state.timer = null
-    // 如果上一次同步还在跑,把最新数据再排一次 (尾随)
-    if (taskSyncRunning.has(projectId)) {
-      scheduleTasksSync(projectId, state.latestData)
-      return
-    }
-    taskSyncRunning.add(projectId)
-    try {
-      await syncTasksFromTree(projectId, state.latestData)
-    } catch (e) {
-      devWarn('[MindMapCanvas] syncTasksFromTree failed:', e)
-    } finally {
-      taskSyncRunning.delete(projectId)
-      // 如果期间又有新的更新,补一次
-      if (state.latestData !== treeData) {
-        scheduleTasksSync(projectId, state.latestData)
-      }
-    }
-  }, 80)
-}
+// Task sync logic with debounce + mutex is now in taskSyncEngine.ts
 
 export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(function MindMapCanvas({
   projectId,
@@ -138,6 +105,8 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
   const onZoomChangeRef = useRef(onZoomChange)
   onZoomChangeRef.current = onZoomChange
   const prevProjectIdRef = useRef(projectId)
+  // 标记当前项目是否为 obsidian 本地项目，data_change 时触发 dirty sync
+  const isObsidianRef = useRef(false)
   // 防止同一 projectId 的重复 setData 触发多次闪烁
   const setDataGuardRef = useRef<{ projectId: string; timer: ReturnType<typeof setTimeout> | null }>({ projectId: '', timer: null })
 
@@ -147,8 +116,6 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     const saved = mindmap?.view_state?.layout as LayoutKey
     return AVAILABLE_LAYOUTS.find(l => l.key === saved) ? saved : 'logicalStructure'
   })
-  const [exportOpen, setExportOpen] = useState(false)
-  const exportMenuRef = useRef<HTMLDivElement>(null)
   // 标记是否跳过 simple-mind-map 初始化后自动触发的首次 data_change
   // 避免 mindmap prop 尚未到达时使用 DEFAULT_TREE_DATA 初始化,
   // 导致 data_change 把默认数据写回 IDB,覆盖已有正确数据 (Bug 6 延伸)。
@@ -282,6 +249,10 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       onDataChangeRef.current?.(newData)
       // 改为防抖同步,避免快速 data_change 竞态导致 task 记录丢失 (Bug 5)
       scheduleTasksSync(projectIdRef.current, newData)
+      // 本地 Obsidian 项目标记 dirty，等待自动写回
+      if (isObsidianRef.current) {
+        markProjectDirty(projectIdRef.current)
+      }
     })
 
     instance.on('node_active', (node: unknown) => {
@@ -405,6 +376,13 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     if (!isProjectSwitch && !usingDefaultDataRef.current) return
     prevProjectIdRef.current = projectId
 
+    // 项目切换时查询是否为 obsidian 类型
+    if (isProjectSwitch) {
+      db.projects.get(projectId).then((p) => {
+        isObsidianRef.current = p?.project_type === 'obsidian'
+      }).catch(() => { isObsidianRef.current = false })
+    }
+
     const instance = mindMapRef.current
     const data = buildMindMapData(mindmap)
     const rootText = ((data as any)?.data?.text) || '(no text)'
@@ -488,18 +466,6 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     }, 400)
   }, [highlightNodeUid])
 
-  // Close export menu on click outside
-  useEffect(() => {
-    if (!exportOpen) return
-    function handleMouseDown(e: MouseEvent) {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
-        setExportOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleMouseDown)
-    return () => document.removeEventListener('mousedown', handleMouseDown)
-  }, [exportOpen])
-
   // Re-init when layout changes
   useEffect(() => {
     // 跳过 mount 首次执行：initMindMap effect 会先创建 instance，
@@ -577,6 +543,26 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     ;(instance as any).execCommand('REMOVE_NODE')
   }, [])
 
+  const handleSetPriority = useCallback((priority: 'high' | 'medium' | 'low') => {
+    const instance = mindMapRef.current
+    if (!instance || !activeNodeRef.current) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(instance as any).execCommand('SET_NODE_DATA', activeNodeRef.current, {
+      _priority: priority,
+    })
+    setActiveNodeData(prev => ({ ...prev, _priority: priority }))
+  }, [])
+
+  const handleSetDueDate = useCallback((date: string | undefined) => {
+    const instance = mindMapRef.current
+    if (!instance || !activeNodeRef.current) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(instance as any).execCommand('SET_NODE_DATA', activeNodeRef.current, {
+      _dueDate: date,
+    })
+    setActiveNodeData(prev => ({ ...prev, _dueDate: date }))
+  }, [])
+
   const isTask = Boolean(activeNodeData?._isTask)
 
   const handleExport = useCallback(async (type: 'png' | 'svg' | 'md' | 'pdf') => {
@@ -607,7 +593,6 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
         description: err instanceof Error ? err.message : '请重试',
       })
     }
-    setExportOpen(false)
   }, [])
 
   return (
@@ -615,110 +600,15 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
       <div ref={containerRef} className="w-full h-full outline-none" style={{ visibility: 'hidden' }} />
 
       {/* Floating toolbar for selected node */}
-      {activeNodeData && activeNodePos && (
-        <div
-          className="absolute z-50 flex flex-col gap-1 bg-bg-surface border border-border-default rounded-lg shadow-md p-1.5 animate-in fade-in zoom-in-95 duration-150"
-          style={{ left: activeNodePos.x, top: activeNodePos.y }}
-        >
-          <button
-            onClick={handleToggleTask}
-            className={cn(
-              'flex items-center gap-2 h-8 px-3 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
-              isTask
-                ? 'bg-primary-subtle text-primary-600'
-                : 'text-text-secondary hover:bg-bg-elevated hover:text-text-primary'
-            )}
-          >
-            {isTask ? (
-              <>
-                <CheckSquare className="h-3.5 w-3.5" />
-                已标记为任务
-              </>
-            ) : (
-              <>
-                <Square className="h-3.5 w-3.5" />
-                转为任务
-              </>
-            )}
-          </button>
-          <button
-            onClick={handleDeleteNode}
-            className="flex items-center gap-2 h-8 px-3 rounded-md text-xs font-medium transition-colors whitespace-nowrap text-status-error hover:bg-status-error/10"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            删除节点
-          </button>
-          {isTask && (
-            <>
-              <div className="flex items-center gap-1 pt-1 border-t border-border-default">
-                <span className="text-[10px] text-text-muted ml-1">优先级</span>
-                {(['high', 'medium', 'low'] as const).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => {
-                      const instance = mindMapRef.current
-                      if (!instance || !activeNodeRef.current) return
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      ;(instance as any).execCommand('SET_NODE_DATA', activeNodeRef.current, {
-                        _priority: p,
-                      })
-                      setActiveNodeData(prev => ({ ...prev, _priority: p }))
-                    }}
-                    className={cn(
-                      'h-5 w-5 rounded-full border-2 transition-all',
-                      p === 'high' && 'border-priority-high',
-                      p === 'medium' && 'border-priority-medium',
-                      p === 'low' && 'border-priority-low',
-                      activeNodeData._priority === p
-                        ? 'bg-bg-elevated scale-110'
-                        : 'opacity-40 hover:opacity-80'
-                    )}
-                    title={p}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1.5 pt-1 border-t border-border-default">
-                <CalendarDays className="h-3 w-3 text-text-muted ml-1" />
-                <span className="text-[10px] text-text-muted">截止</span>
-                <input
-                  type="date"
-                  value={activeNodeData._dueDate ? String(activeNodeData._dueDate).slice(0, 10) : ''}
-                  onChange={(e) => {
-                    const instance = mindMapRef.current
-                    if (!instance || !activeNodeRef.current) return
-                    const dateVal = e.target.value
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    ;(instance as any).execCommand('SET_NODE_DATA', activeNodeRef.current, {
-                      _dueDate: dateVal ? new Date(dateVal).toISOString() : undefined,
-                    })
-                    setActiveNodeData(prev => ({
-                      ...prev,
-                      _dueDate: dateVal ? new Date(dateVal).toISOString() : undefined,
-                    }))
-                  }}
-                  className="h-6 px-1.5 rounded border border-border-default bg-bg-primary text-[11px] text-text-primary focus:outline-none focus:ring-1 focus:ring-primary-400"
-                />
-                              {!!activeNodeData._dueDate && (
-                  <button
-                    onClick={() => {
-                      const instance = mindMapRef.current
-                      if (!instance || !activeNodeRef.current) return
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      ;(instance as any).execCommand('SET_NODE_DATA', activeNodeRef.current, {
-                        _dueDate: undefined,
-                      })
-                      setActiveNodeData(prev => ({ ...prev, _dueDate: undefined }))
-                    }}
-                    className="text-text-muted hover:text-status-error"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      <NodeToolbar
+        activeNodeData={activeNodeData}
+        activeNodePos={activeNodePos}
+        isTask={isTask}
+        onToggleTask={handleToggleTask}
+        onDeleteNode={handleDeleteNode}
+        onSetPriority={handleSetPriority}
+        onSetDueDate={handleSetDueDate}
+      />
 
       {/* Layout switcher + Export */}
       <div className="absolute top-3 left-3 flex items-center gap-1 bg-bg-surface/90 backdrop-blur border border-border-default rounded-lg shadow-sm z-40 px-1 py-1">
@@ -763,53 +653,7 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
           <ChevronsUp className="h-3.5 w-3.5" />
         </button>
         <div className="w-px h-4 bg-border-default mx-0.5" />
-        <div className="relative">
-          <button
-            onClick={() => setExportOpen(v => !v)}
-            className={cn(
-              'flex items-center gap-1.5 h-7 px-2 rounded-md text-xs font-medium transition-colors',
-              exportOpen
-                ? 'bg-primary-subtle text-primary-600'
-                : 'text-text-muted hover:text-text-primary hover:bg-bg-elevated'
-            )}
-            title="导出"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">导出</span>
-          </button>
-          {exportOpen && (
-            <div ref={exportMenuRef} className="absolute left-0 top-8 z-50 w-36 bg-bg-surface border border-border-default rounded-lg shadow-lg py-1 animate-in fade-in zoom-in-95 duration-150">
-              <button
-                onClick={() => handleExport('png')}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-elevated transition-colors"
-              >
-                <Image className="h-3.5 w-3.5" />
-                导出 PNG
-              </button>
-              <button
-                onClick={() => handleExport('svg')}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-elevated transition-colors"
-              >
-                <FileCode className="h-3.5 w-3.5" />
-                导出 SVG
-              </button>
-              <button
-                onClick={() => handleExport('md')}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-elevated transition-colors"
-              >
-                <FileText className="h-3.5 w-3.5" />
-                导出 Markdown
-              </button>
-              <button
-                onClick={() => handleExport('pdf')}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-elevated transition-colors"
-              >
-                <FileInput className="h-3.5 w-3.5" />
-                导出 PDF
-              </button>
-            </div>
-          )}
-        </div>
+        <ExportToolbar onExport={handleExport} />
       </div>
 
       {/* Keyboard hint */}
