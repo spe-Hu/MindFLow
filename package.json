@@ -1,9 +1,29 @@
 {
+  "name": "mindflow-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "apps/web",
+    "landing-page"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:landing": "npm --workspace landing-page run dev",
+    "build:web": "npm --workspace apps/web run build",
+    "build:landing": "npm --workspace landing-page run build",
+    "preview:web": "npm --workspace apps/web run preview",
+    "preview:landing": "npm --workspace landing-page run preview",
+    "lint:web": "npm --workspace apps/web run lint",
+    "lint:landing": "npm --workspace landing-page run lint",
+    "test:unit": "npm --workspace apps/web run test",
+    "test:e2e": "playwright test"
+  },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
-    "@types/dompurify": "^3.0.5"
+    "@playwright/test": "^1.61.1"
   },
   "dependencies": {
+    "@types/dompurify": "^3.0.5",
     "dompurify": "^3.4.11"
   }
 }
