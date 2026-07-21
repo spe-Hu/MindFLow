@@ -169,3 +169,8 @@ export function formatTime(seconds: number): string {
   const s = seconds % 60
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
+
+// Expose store to window for E2E automation
+if (typeof window !== 'undefined') {
+  ;(window as any).__pomodoroStore = usePomodoroStore
+}

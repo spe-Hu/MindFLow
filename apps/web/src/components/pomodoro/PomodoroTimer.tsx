@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { usePomodoroStore, formatTime, type PomodoroMode } from '@/stores/pomodoroStore'
-import { db, updateTaskWithMindmapSync } from '@/lib/db'
+import { db } from '@/lib/db'
+import { updateTaskWithMindmapSync } from '@/lib/taskTreeSync'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {

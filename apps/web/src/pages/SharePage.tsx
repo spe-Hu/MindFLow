@@ -43,38 +43,53 @@ export function SharePage() {
       instanceRef.current = null
     }
 
-    const instance = new MindMap({
-      el: containerRef.current,
-      data: snap.treeData as Record<string, unknown>,
-      layout: (snap.layout || 'logicalStructure') as any,
-      theme: 'default',
-      readonly: true,
-      fit: false,
-      mousewheelAction: 'zoom',
-      enableFreeDrag: false,
-    } as any)
+    // 延迟初始化，确保容器已完成浏览器布局（避免 "宽高不能为0" 错误）
+    let cancelled = false
+    const initTimer = setTimeout(() => {
+      if (cancelled || !containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) {
+        // 容器尚未就绪，放弃本次初始化，等待下一次 effect 重试
+        return
+      }
 
-    instanceRef.current = instance
+      const instance = new MindMap({
+        el: containerRef.current,
+        data: snap.treeData as Record<string, unknown>,
+        layout: (snap.layout || 'logicalStructure') as any,
+        theme: 'default',
+        readonly: true,
+        fit: false,
+        mousewheelAction: 'zoom',
+        enableFreeDrag: false,
+      } as any)
 
-    // Delayed fit to avoid rbox error
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ;(instance as any).view?.fit?.()
-        } catch { /* ignore */ }
+      instanceRef.current = instance
+
+      // Delayed fit to avoid rbox error
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(instance as any).view?.fit?.()
+          } catch { /* ignore */ }
+          setZoom(Math.round(((instance as any).view?.scale || 1) * 100))
+        }, 50)
+      })
+
+      // Update zoom state on mousewheel zoom
+      instance.on('scale', () => {
         setZoom(Math.round(((instance as any).view?.scale || 1) * 100))
-      }, 50)
-    })
-
-    // Update zoom state on mousewheel zoom
-    instance.on('scale', () => {
-      setZoom(Math.round(((instance as any).view?.scale || 1) * 100))
-    })
+      })
+    }, 100)
 
     return () => {
-      instance.destroy()
-      instanceRef.current = null
+      cancelled = true
+      clearTimeout(initTimer)
+      if (instanceRef.current) {
+        instanceRef.current.destroy()
+        instanceRef.current = null
+      }
     }
   }, [share])
 
@@ -134,7 +149,7 @@ export function SharePage() {
     : ''
 
   return (
-    <div className="min-h-screen flex flex-col bg-bg-primary">
+    <div className="h-screen flex flex-col bg-bg-primary">
       {/* Header */}
       <header className="h-12 flex items-center justify-between px-4 border-b border-border-default bg-bg-surface/80 backdrop-blur z-50">
         <div className="flex items-center gap-2.5">

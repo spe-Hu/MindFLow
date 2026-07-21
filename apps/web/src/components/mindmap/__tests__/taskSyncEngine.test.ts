@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock must be declared before any imports (hoisted by vitest)
 // Use a variable inside vi.mock factory — no top-level references allowed
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/taskTreeSync', () => ({
   syncTasksFromTree: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Import after mock setup
-const { syncTasksFromTree: mockSyncTasksFromTree } = await import('@/lib/db')
+const { syncTasksFromTree: mockSyncTasksFromTree } = await import('@/lib/taskTreeSync')
 import { scheduleTasksSync, __resetTaskSyncState } from '../taskSyncEngine'
 
 describe('taskSyncEngine', () => {

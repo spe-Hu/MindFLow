@@ -5,21 +5,27 @@ import {
   syncTaskToCloud,
   fetchAllFromCloud,
 } from '@/lib/sync'
-import { useAuthStore } from './authStore'
-import { useProjectStore } from './projectStore'
 import { db } from '@/lib/db'
 import { devLog, devWarn } from '@/lib/devConsole'
 
 type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline'
 
+/** Injected dependencies — decouple syncStore from auth/project stores */
+interface SyncDeps {
+  getUser: () => { id: string } | null
+  refreshProjects: () => Promise<void>
+}
+
 interface SyncState {
   status: SyncStatus
   lastSyncTime: string | null
   lastError: string | null
+  deps: SyncDeps | null
 
   setStatus: (status: SyncStatus) => void
   setLastSyncTime: (time: string) => void
   setLastError: (error: string | null) => void
+  setDeps: (deps: SyncDeps) => void
   reset: () => void
 
   // 核心：双向同步（先 push 本地 → 再 pull 云端）
@@ -30,10 +36,11 @@ let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let lastSyncTimestamp = 0
 const MIN_SYNC_INTERVAL_MS = 30_000 // 30 秒最小间隔
 
-export const useSyncStore = create<SyncState>((set) => ({
+export const useSyncStore = create<SyncState>((set, get) => ({
   status: navigator.onLine ? 'idle' : 'offline',
   lastSyncTime: localStorage.getItem('mindflow-last-sync-time'),
   lastError: null,
+  deps: null,
 
   setStatus: (status) => set({ status }),
   setLastSyncTime: (time) => {
@@ -41,10 +48,14 @@ export const useSyncStore = create<SyncState>((set) => ({
     set({ lastSyncTime: time })
   },
   setLastError: (lastError) => set({ lastError }),
+  setDeps: (deps) => set({ deps }),
   reset: () => set({ status: navigator.onLine ? 'idle' : 'offline', lastError: null }),
 
   doAutoSync: async () => {
-    const { user } = useAuthStore.getState()
+    const { deps } = get()
+    const user = deps?.getUser()
+    const refreshProjects = deps?.refreshProjects
+
     if (!user) return
     if (!navigator.onLine) {
       set({ status: 'offline' })
@@ -94,8 +105,10 @@ export const useSyncStore = create<SyncState>((set) => ({
           if (cloud.tasks.length > 0) await db.tasks.bulkPut(cloud.tasks)
         })
 
-        // 刷新 UI（通过 projectStore 的 loadProjects）
-        await useProjectStore.getState().loadProjects()
+        // 刷新 UI（通过注入的 refreshProjects）
+        if (refreshProjects) {
+          await refreshProjects()
+        }
 
         const isoNow = new Date().toISOString()
         localStorage.setItem('mindflow-last-sync-time', isoNow)

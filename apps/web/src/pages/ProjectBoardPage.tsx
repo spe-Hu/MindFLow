@@ -26,7 +26,8 @@ export function ProjectBoardPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { setActiveProject } = useProjectStore()
-  const { projectTasks, loadProjectTasks, updateTask } = useTaskStore()
+  const { allTasks, loadProjectTasks, updateTask } = useTaskStore()
+  const projectTasks = id ? allTasks.filter((t) => t.project_id === id) : []
 
   const handleAddTask = async (status: string) => {
     const title = window.prompt('输入新任务标题')

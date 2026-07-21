@@ -235,6 +235,18 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
 
     instance.on('data_change', (newData: Record<string, unknown>) => {
       const newRootText = ((newData as any)?.data?.text) || '(no text)'
+      // 防止 simple-mind-map 在 setData 后触发的过时 data_change 携带旧数据（"中心主题"）
+      // 覆盖正确数据。如果 instance 已加载真实 mindmap 数据（非 null），
+      // 但 data_change 的根文本是初始默认值，说明该 data_change 来自旧 instance
+      // 状态，应忽略。
+      const realMindmap = mindmapRef.current
+      if (realMindmap?.tree_data) {
+        const realRootText = ((realMindmap.tree_data as any)?.data?.text) || ''
+        if (newRootText === '中心主题' && realRootText && realRootText !== '中心主题') {
+          devLog('[MindMapCanvas] data_change stale default ignored — real:', realRootText)
+          return
+        }
+      }
       devLog('[MindMapCanvas] data_change — usingDefault:', usingDefaultDataRef.current, '| initialChange:', initialChangeRef.current, '| rootText:', newRootText)
       // 如果当前 instance 是用 DEFAULT_TREE_DATA 初始化的（mindmap prop 尚未到达），
       // 跳过所有 data_change，避免把默认数据写回 IDB 覆盖正确数据 (Bug 6 延伸)。
@@ -299,10 +311,8 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
     ;(instance as any).keyCommand.addShortcut('t', toggleTaskShortcut)
 
     mindMapRef.current = instance
-    // Expose for E2E automation via Playwright evaluate (dev only)
-    if (import.meta.env.DEV) {
-      ;(window as any).__mindMap = instance
-    }
+    // Expose for E2E automation via Playwright evaluate
+    ;(window as any).__mindMap = instance
 
     // 延迟 fit: 等 DOM 完成布局 + 节点全部挂载，再让整图居中并自适应缩放。
     // 避免 simple-mind-map 内部 View.fit → rbox 报错，用 try/catch 兜底。
@@ -370,10 +380,12 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
   useEffect(() => {
     if (!mindMapRef.current) return
     const isProjectSwitch = prevProjectIdRef.current !== projectId
-    if (!isProjectSwitch && mindmapRef.current === mindmap) return
     // 避免 onDataChange 回写 mindmap prop 触发不必要的 setData + 闪烁。
     // 只有在项目切换或 instance 仍在使用默认数据（首次加载）时才执行。
     if (!isProjectSwitch && !usingDefaultDataRef.current) return
+    // 项目切换时 mindmap prop 可能仍是旧项目的数据（异步 DB 查询未完成），
+    // 此时跳过 setData，等正确的 mindmap 到达后再触发。
+    if (isProjectSwitch && mindmap && (mindmap as any).project_id && (mindmap as any).project_id !== projectId) return
     prevProjectIdRef.current = projectId
 
     // 项目切换时查询是否为 obsidian 类型
@@ -385,8 +397,6 @@ export const MindMapCanvas = forwardRef<MindMapCanvasRef, MindMapCanvasProps>(fu
 
     const instance = mindMapRef.current
     const data = buildMindMapData(mindmap)
-    const rootText = ((data as any)?.data?.text) || '(no text)'
-    devLog('[MindMapCanvas] data update — projectId:', projectId, '| rootText:', rootText, '| isProjectSwitch:', isProjectSwitch)
 
     if (mindmap?.tree_data) {
       // 防抖 guard：同一 projectId 在 200ms 内多次触发只保留最后一次，

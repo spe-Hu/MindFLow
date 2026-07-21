@@ -20,7 +20,8 @@ export function ProjectMindMapPage() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const { setActiveProject } = useProjectStore()
-  const { loadProjectTasks, projectTasks } = useTaskStore()
+  const { loadProjectTasks, allTasks } = useTaskStore()
+  const projectTasks = allTasks.filter((t) => t.project_id === id)
   const { detailSidebarWidth } = useUIStore()
   const [mindmap, setMindmap] = useState<LocalMindmap | null>(null)
   const [loading, setLoading] = useState(true)
@@ -118,15 +119,21 @@ export function ProjectMindMapPage() {
   )
 
   const handleShare = useCallback(async () => {
-    if (!id || !mindmap) {
+    if (!id) {
       toast.error('思维导图尚未加载，请稍后再试')
       return
     }
     try {
+      // 直接从 IndexedDB 读取最新 mindmap，避免 stale React state
+      const latestMindmap = await db.mindmaps.where('project_id').equals(id).first()
+      if (!latestMindmap) {
+        toast.error('思维导图尚未加载，请稍后再试')
+        return
+      }
       const project = await db.projects.get(id)
       const projectName = project?.name || '未命名项目'
-      const layout = (mindmap.view_state?.layout as string) || 'logicalStructure'
-      const token = await createSharedLink(id, projectName, mindmap.tree_data as Record<string, unknown>, layout)
+      const layout = (latestMindmap.view_state?.layout as string) || 'logicalStructure'
+      const token = await createSharedLink(id, projectName, latestMindmap.tree_data as Record<string, unknown>, layout)
       const url = buildShareUrl(token)
       await navigator.clipboard.writeText(url)
       toast.success('分享链接已生成并复制到剪贴板', {
@@ -136,7 +143,7 @@ export function ProjectMindMapPage() {
       const msg = err instanceof Error ? err.message : '创建分享链接失败'
       toast.error(msg)
     }
-  }, [id, mindmap])
+  }, [id])
 
   const handleNodeActive = useCallback((data: Record<string, unknown> | null) => {
     setActiveNodeData(data)

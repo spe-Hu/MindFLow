@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { LocalTask } from '@/lib/db'
-import { db, getProjectTasks, getAllTasks, updateTaskWithMindmapSync } from '@/lib/db'
+import { db, getProjectTasks, getAllTasks } from '@/lib/db'
+import { updateTaskWithMindmapSync } from '@/lib/taskTreeSync'
 
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'cancelled'
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
@@ -16,9 +17,7 @@ export type SortBy = 'dueDate' | 'priority' | 'createdAt'
 export type SortOrder = 'asc' | 'desc'
 
 interface TaskState {
-  // Current project tasks
-  projectTasks: LocalTask[]
-  // Global tasks
+  // Unified task cache (single source of truth)
   allTasks: LocalTask[]
   // Filters
   filters: TaskFilterState
@@ -101,8 +100,12 @@ function applyFiltersAndSort(
   return result
 }
 
+async function reloadAllTasks(setter: (fn: (state: TaskState) => Partial<TaskState>) => void) {
+  const tasks = await getAllTasks()
+  setter(() => ({ allTasks: tasks }))
+}
+
 export const useTaskStore = create<TaskState>((set, get) => ({
-  projectTasks: [],
   allTasks: [],
   filters: {},
   sortBy: 'dueDate',
@@ -114,7 +117,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const tasks = await getProjectTasks(projectId)
-      set({ projectTasks: tasks, isLoading: false })
+      set((state) => {
+        // Merge: replace existing tasks for this project, keep others
+        const merged = state.allTasks.filter((t) => t.project_id !== projectId)
+        merged.push(...tasks)
+        return { allTasks: merged, isLoading: false }
+      })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to load tasks', isLoading: false })
     }
@@ -132,31 +140,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   addTask: async (task) => {
     await db.tasks.put(task)
-    const state = get()
-    if (state.projectTasks.some((t) => t.project_id === task.project_id)) {
-      await state.loadProjectTasks(task.project_id)
-    }
-    await state.loadAllTasks()
+    await reloadAllTasks(set)
   },
 
   updateTask: async (id, updates) => {
     await updateTaskWithMindmapSync(id, updates)
-    const state = get()
-    const task = await db.tasks.get(id)
-    if (task) {
-      await state.loadProjectTasks(task.project_id)
-      await state.loadAllTasks()
-    }
+    await reloadAllTasks(set)
   },
 
   deleteTask: async (id) => {
-    const task = await db.tasks.get(id)
     await db.tasks.delete(id)
-    const state = get()
-    if (task) {
-      await state.loadProjectTasks(task.project_id)
-      await state.loadAllTasks()
-    }
+    await reloadAllTasks(set)
   },
 
   toggleTaskStatus: async (id) => {
@@ -165,9 +159,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const newStatus: TaskStatus = task.status === 'done' ? 'todo' : 'done'
     const completedAt = newStatus === 'done' ? new Date() : undefined
     await updateTaskWithMindmapSync(id, { status: newStatus, completed_at: completedAt })
-    const state = get()
-    await state.loadProjectTasks(task.project_id)
-    await state.loadAllTasks()
+    await reloadAllTasks(set)
   },
 
   setFilters: (filters) => set({ filters }),
@@ -181,8 +173,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   getFilteredProjectTasks: (projectId: string) => {
-    const { projectTasks, filters, sortBy, sortOrder } = get()
-    const projectOnly = projectTasks.filter((t) => t.project_id === projectId)
+    const { allTasks, filters, sortBy, sortOrder } = get()
+    const projectOnly = allTasks.filter((t) => t.project_id === projectId)
     return applyFiltersAndSort(projectOnly, filters, sortBy, sortOrder)
   },
 }))

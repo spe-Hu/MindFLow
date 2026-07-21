@@ -9,7 +9,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { scheduleAutoSync, useSyncStore } from '@/stores/syncStore'
-import { cleanupOrphanedTasks } from '@/lib/db'
+import { cleanupOrphanedTasks } from '@/lib/taskTreeSync'
 import { toast } from 'sonner'
 
 export function AppLayout() {
@@ -22,6 +22,11 @@ export function AppLayout() {
     loadProjects()
     // Async data integrity cleanup - non-blocking
     cleanupOrphanedTasks().catch(() => { /* ignore */ })
+    // Inject sync dependencies to break implicit cross-store coupling
+    useSyncStore.getState().setDeps({
+      getUser: () => useAuthStore.getState().user,
+      refreshProjects: () => useProjectStore.getState().loadProjects(),
+    })
   }, [loadProjects])
 
   // --- Auto sync: app startup (debounced) ---

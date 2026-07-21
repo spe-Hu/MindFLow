@@ -59,8 +59,8 @@ export const PROJECT_TEMPLATES: MindMapTemplate[] = [
         uid: 'root',
         expand: true,
         isRoot: true,
-        children: [],
       },
+      children: [],
     },
   },
   {
@@ -238,8 +238,8 @@ export function applyTemplate(templateId: string, projectName: string): Record<s
         uid: 'root',
         expand: true,
         isRoot: true,
-        children: [],
       },
+      children: [],
     }
   }
 

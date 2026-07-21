@@ -1,4 +1,4 @@
-import { syncTasksFromTree } from '@/lib/db'
+import { syncTasksFromTree } from '@/lib/taskTreeSync'
 import { devWarn } from '@/lib/devConsole'
 
 /**

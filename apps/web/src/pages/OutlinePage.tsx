@@ -3,7 +3,8 @@ import { useParams } from 'react-router-dom'
 import { ViewHeader } from '@/components/layout/ViewHeader'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { db, syncTasksFromTree } from '@/lib/db'
+import { db } from '@/lib/db'
+import { syncTasksFromTree } from '@/lib/taskTreeSync'
 import { syncMindmapToCloud, syncProjectToCloud } from '@/lib/sync'
 import { OutlineEditor } from '@/components/outline/OutlineEditor'
 import type { LocalMindmap } from '@/lib/db'
@@ -91,10 +92,23 @@ export function OutlinePage() {
 
   if (!id) return null
 
-  const treeData: MindMapNode = (mindmap?.tree_data as MindMapNode) || {
-    data: { text: '中心主题', uid: 'root', expand: true, isRoot: true },
-    children: [],
+  function normalizeTree(node: any): MindMapNode {
+    if (!node) return { data: { text: '' }, children: [] }
+    const data = node.data || {}
+    const children = node.children || data.children || []
+    const normalizedChildren = Array.isArray(children)
+      ? children.map((c: any) => normalizeTree(c))
+      : []
+    return { data: { ...data }, children: normalizedChildren }
   }
+
+  const rawTree = mindmap?.tree_data as any
+  const treeData: MindMapNode = rawTree
+    ? normalizeTree(rawTree)
+    : {
+        data: { text: '中心主题', uid: 'root', expand: true, isRoot: true },
+        children: [],
+      }
 
   return (
     <div className="flex flex-col h-full">

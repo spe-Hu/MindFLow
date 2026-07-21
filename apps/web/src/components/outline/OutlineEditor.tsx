@@ -297,6 +297,7 @@ function OutlineRowItem({
           onInput={() => {
             const text = editorRef.current?.textContent || ''
             lastTextRef.current = text
+            onTextChange(index, text)
           }}
           onKeyDown={(e) => onKeyDown(index, e)}
           onClick={() => onFocus(index)}
@@ -340,9 +341,10 @@ export function OutlineEditor({ treeData, onTreeChange }: OutlineEditorProps) {
       if (next[index]) {
         next[index] = { ...next[index]!, text }
       }
+      setTimeout(() => syncTree(next), 10)
       return next
     })
-  }, [])
+  }, [syncTree])
 
   const handleToggleCollapse = useCallback((index: number) => {
     setRows(prev => {
