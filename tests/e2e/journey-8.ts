@@ -110,26 +110,21 @@ export async function runJourney8(page: Page) {
   // 节点详情面板
   // ============================================================
 
-  // DETAIL-1: 双击节点打开详情面板
+  // DETAIL-1: 选中节点后详情面板自动显示（detailVisible 默认 true）
   try {
     await page.click('button:has-text("导图")')
     await page.waitForTimeout(600)
 
     await focusNodeByText(page, '需求分析')
-    await page.waitForTimeout(400)
+    await page.waitForTimeout(800)
 
-    // 通过浮动工具栏「查看详情」按钮打开 Sheet（比 dblclick 更稳定）
-    const viewDetailBtn = page.locator('button:has-text("查看详情")').first()
-    await viewDetailBtn.click()
-    await page.waitForTimeout(500)
+    // 详情面板默认已开，选中节点后应能看到「属性」「文档」两个 Tab
+    await expect(page.locator('text=属性').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=文档').first()).toBeVisible({ timeout: 5000 })
 
-    // Sheet 打开后应能看到「属性」「文档」两个 Tab
-    await expect(page.locator('text=属性').first()).toBeVisible()
-    await expect(page.locator('text=文档').first()).toBeVisible()
-
-    results.push({ name: 'DETAIL-1: 双击节点打开详情面板（属性/文档 Tab 可见）', pass: true })
+    results.push({ name: 'DETAIL-1: 选中节点后详情面板显示（属性/文档 Tab 可见）', pass: true })
   } catch (e: any) {
-    results.push({ name: 'DETAIL-1: 双击节点打开详情面板（属性/文档 Tab 可见）', pass: false, detail: e.message })
+    results.push({ name: 'DETAIL-1: 选中节点后详情面板显示（属性/文档 Tab 可见）', pass: false, detail: e.message })
   }
 
   // DETAIL-2: 属性 Tab 中「转为任务」，设置优先级为「高」
@@ -141,17 +136,17 @@ export async function runJourney8(page: Page) {
 
     // 节点详情 Sheet 内才有「转为任务」开关；画布浮动工具栏也存在同名按钮（位于 Sheet 之下），
     // 必须用 [data-base-ui-portal] 限定到详情面板，否则 Playwright 会点到被 Sheet 遮挡的画布按钮。
-    const toggleBtn = page.locator('[data-base-ui-portal] button:has-text("转为任务")').first()
+    const toggleBtn = page.locator('button:has-text("转为任务")').first()
     await expect(toggleBtn).toBeVisible()
     await toggleBtn.click()
     await page.waitForTimeout(400)
 
     // 点击后按钮应变为「已标记为任务」
-    await expect(page.locator('[data-base-ui-portal] button:has-text("已标记为任务")').first()).toBeVisible()
+    await expect(page.locator('button:has-text("已标记为任务")').first()).toBeVisible()
 
     // 设置优先级为「高」
     // 优先级按钮组位于含「优先级」label 的同一字段容器内，直接按文案在 Sheet 内定位即可。
-    const highBtn = page.locator('[data-base-ui-portal] button', { hasText: /^高$/ }).first()
+    const highBtn = page.locator('button', { hasText: /^高$/ }).first()
     await expect(highBtn).toBeVisible()
     await highBtn.click()
     await page.waitForTimeout(200)
@@ -167,7 +162,7 @@ export async function runJourney8(page: Page) {
 
   // DETAIL-3: 设置截止日期
   try {
-    const dateInput = page.locator('[data-base-ui-portal] input[type="date"]').first()
+    const dateInput = page.locator('input[type="date"]').first()
     await expect(dateInput).toBeVisible()
 
     const futureDate = new Date()

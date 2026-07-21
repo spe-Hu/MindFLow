@@ -6,6 +6,7 @@
 // 干扰，同时让 authStore.user 被 initSession 填充，满足附件上传的前置条件）。
 
 import { Page, expect } from '@playwright/test'
+import { addMindMapChildViaAPI, focusNodeByText } from './helpers'
 
 const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 const SUPABASE_URL = 'https://biywnxryvwsszplzirce.supabase.co'
@@ -49,15 +50,6 @@ function injectMockSession(page: Page) {
   )
 }
 
-/** 聚焦 simple-mind-map 中指定文字节点（点击文字中心） */
-async function focusNodeByText(page: Page, text: string) {
-  const el = page.locator('text=' + text).first()
-  await el.scrollIntoViewIfNeeded().catch(() => {})
-  const box = await el.boundingBox()
-  if (!box) throw new Error(`Node not found: ${text}`)
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
-  await page.waitForTimeout(300)
-}
 
 export async function runJourney10(page: Page): Promise<JourResultLike[]> {
   const results: JourneyResult[] = []
@@ -146,20 +138,19 @@ export async function runJourney10(page: Page): Promise<JourResultLike[]> {
       }
       if (method === 'GET') {
         if (sharedLinksStore) {
+          const responseBody = {
+            id: 'shared-1',
+            project_id: sharedLinksStore.project_id,
+            token: sharedLinksStore.token,
+            snapshot: sharedLinksStore.snapshot,
+            created_by: MOCK_USER_ID,
+            created_at: new Date().toISOString(),
+            expires_at: null,
+          }
           return route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify([
-              {
-                id: 'shared-1',
-                project_id: sharedLinksStore.project_id,
-                token: sharedLinksStore.token,
-                snapshot: sharedLinksStore.snapshot,
-                created_by: MOCK_USER_ID,
-                created_at: new Date().toISOString(),
-                expires_at: null,
-              },
-            ]),
+            body: JSON.stringify(responseBody),
           })
         }
         return route.fulfill({ status: 200, body: '[]' })
@@ -198,30 +189,27 @@ export async function runJourney10(page: Page): Promise<JourResultLike[]> {
     await page.waitForTimeout(600)
 
     // 创建子节点
-    await page.locator('g.smm-node').first().click({ force: true })
-    await page.waitForTimeout(300)
-    await page.keyboard.press('Tab')
-    await page.waitForTimeout(400)
-    await page.keyboard.type('附件任务节点', { delay: 30 })
-    await page.keyboard.press('Enter')
-    await page.waitForTimeout(600)
+    await addMindMapChildViaAPI(page, '附件任务节点')
 
-    // 打开节点详情并转为任务
+    // 通过 API 激活节点 → 右侧 sidebar 自动显示节点详情
     await focusNodeByText(page, '附件任务节点')
-    const viewDetailBtn = page.locator('button:has-text("查看详情")').first()
-    await expect(viewDetailBtn).toBeVisible({ timeout: 5000 })
-    await viewDetailBtn.click()
     await page.waitForTimeout(500)
-    const toggleBtn = page.locator('[data-base-ui-portal] button:has-text("转为任务")').first()
+    // 直接点击 sidebar 里的"转为任务"（排除浮动工具栏 portal）
+    const toggleBtn = page.locator('button:has-text("转为任务")').filter({
+      hasNot: page.locator('[data-base-ui-portal]')
+    }).first()
     await expect(toggleBtn).toBeVisible({ timeout: 5000 })
     await toggleBtn.click()
     await page.waitForTimeout(500)
-    await expect(page.locator('[data-base-ui-portal] button:has-text("已标记为任务")').first()).toBeVisible()
-    await page.keyboard.press('Escape')
-    await page.waitForTimeout(400)
+    await expect(page.locator('button:has-text("已标记为任务")').filter({
+      hasNot: page.locator('[data-base-ui-portal]')
+    }).first()).toBeVisible({ timeout: 5000 })
 
     const projectId = page.url().match(/\/project\/(.+)/)?.[1]
     if (!projectId) throw new Error('无法获取 projectId')
+
+    // 等待 mindmap 数据同步到 IndexedDB（data_change 事件是异步的）
+    await page.waitForTimeout(1500)
 
     results.push({ name: 'SETUP 项目 + 任务节点创建成功', pass: true })
 
@@ -247,12 +235,8 @@ export async function runJourney10(page: Page): Promise<JourResultLike[]> {
     // ============ SHARE-2: 公共只读分享页正确渲染 ============
     try {
       const token = sharedLinksStore!.token
-      console.error('[SHARE-2] token=', token, '| url before goto=', page.url())
       await page.goto(BASE_URL + '/share/' + token, { waitUntil: 'domcontentloaded' })
       await page.waitForTimeout(1000)
-      console.error('[SHARE-2] url after goto=', page.url())
-      const nodeCount = await page.evaluate(() => document.querySelectorAll('g.smm-node').length)
-      console.error('[SHARE-2] g.smm-node count after goto=', nodeCount)
       // SharePage 异步拉取快照并渲染只读导图
       await page.waitForFunction(
         () => document.querySelectorAll('g.smm-node').length > 0,
@@ -290,16 +274,16 @@ export async function runJourney10(page: Page): Promise<JourResultLike[]> {
       await page.waitForTimeout(600)
 
       await focusNodeByText(page, '附件任务节点')
-      const viewDetailBtn2 = page.locator('button:has-text("查看详情")').first()
-      await expect(viewDetailBtn2).toBeVisible({ timeout: 5000 })
-      await viewDetailBtn2.click()
-      await page.waitForTimeout(500)
+      await page.waitForTimeout(800)
 
-      // 切到「附件」Tab
-      const attachTab = page.locator('[data-base-ui-portal] button:has-text("附件")').first()
-      await expect(attachTab).toBeVisible({ timeout: 5000 })
-      await attachTab.click()
-      await page.waitForTimeout(400)
+      // 切到「附件」Tab（通过 evaluate 直接触发点击，绕过 Playwright actionability）
+      await page.evaluate(() => {
+        const tab = Array.from(document.querySelectorAll('[role="tab"]')).find(
+          t => t.textContent?.includes('附件')
+        ) as HTMLElement | undefined
+        tab?.click()
+      })
+      await page.waitForTimeout(800)
 
       // 通过隐藏 file input 注入 PNG
       const fileInput = page.locator('input[type="file"]').first()

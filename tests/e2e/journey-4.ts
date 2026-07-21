@@ -10,6 +10,7 @@
 
 import { Page, expect } from '@playwright/test'
 import { enterLocalMode, createProject } from './journey-1'
+import { addMindMapChildViaAPI, toggleTaskViaKeyboard } from './helpers'
 
 const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 
@@ -43,36 +44,7 @@ async function addChildTaskWithDueDate(
   dueDate: string,
   priority: 'high' | 'medium' | 'low' = 'medium'
 ) {
-  // 确保 simple-mind-map 初始化完成 (safeFit + 节点渲染)
-  await page.waitForTimeout(800)
-
-  // headless 下 Tab 不总是触发 edit-wrap,加 retry 机制
-  let editWrap = page.locator('div.smm-node-edit-wrap')
-  let retries = 0
-  while (retries < 5) {
-    // headless 下 simple-mind-map 的 g.smm-node 偶尔被 Playwright 判定不可见
-    // （截图确认节点已正常渲染），改用 mouse.click + boundingBox 绕过 actionability
-    const rootEl = page.locator('g.smm-node').first()
-    await rootEl.scrollIntoViewIfNeeded().catch(() => {})
-    const box = await rootEl.boundingBox().catch(() => null)
-    if (box && box.width > 0 && box.height > 0) {
-      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
-    } else {
-      await rootEl.click({ force: true }).catch(() => {}) // fallback
-    }
-    await page.waitForTimeout(300)
-    await page.keyboard.press('Tab')
-    await page.waitForTimeout(500)
-    editWrap = page.locator('div.smm-node-edit-wrap')
-    if (await editWrap.count() > 0) break
-    retries++
-  }
-  if (await editWrap.count() === 0) {
-    throw new Error(`Failed to create child node for: ${text} (edit-wrap not found after 3 retries)`)
-  }
-  await editWrap.pressSequentially(text, { delay: 30 })
-  await editWrap.press('Enter')
-  await page.waitForTimeout(600)
+  await addMindMapChildViaAPI(page, text)
 
   // 使用 __mindMap API 直接标记任务 + 设置日期/优先级
   // (headless 下浮动工具栏经常因 activeNodePos 计算失败而不渲染)

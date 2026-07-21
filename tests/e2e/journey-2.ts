@@ -4,6 +4,7 @@
 
 import { Page, expect } from '@playwright/test'
 import { enterLocalMode, createProject } from './journey-1'
+import { addMindMapChildViaAPI, toggleTaskViaKeyboard } from './helpers'
 
 const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 const PROJECT_A = 'E2E-项目A-' + Date.now()
@@ -22,41 +23,9 @@ async function clickNodeByText(page: Page, text: string) {
 }
 
 async function addChildAndTask(page: Page, text: string, alsoMarkAsTask: boolean) {
-  // headless 下 simple-mind-map Tab 创建节点不稳定，加 retry 机制
-  let created = false
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const rootNodeEl = page.locator('g.smm-node').first()
-    await rootNodeEl.scrollIntoViewIfNeeded().catch(() => {})
-    await rootNodeEl.click({ force: true })
-    await page.waitForTimeout(300)
-    await page.keyboard.press('Tab')
-    await page.waitForTimeout(500)
-    const editWrap = page.locator('div.smm-node-edit-wrap')
-    if (await editWrap.count() === 0) {
-      await page.waitForTimeout(200)
-      continue
-    }
-    await page.keyboard.type(text, { delay: 30 })
-    await page.keyboard.press('Enter')
-    await page.waitForTimeout(600)
-    // 验证节点是否出现
-    const found = await page.locator('text=' + text).first().isVisible().catch(() => false)
-    if (found) {
-      created = true
-      break
-    }
-  }
-  if (!created) {
-    throw new Error(`创建节点 "${text}" 失败，3 次 retry 后仍未出现`)
-  }
+  await addMindMapChildViaAPI(page, text)
   if (alsoMarkAsTask) {
-    // 新建节点通常会自动选中 (simple-mind-map 行为)
-    // 用浮动工具栏标记
-    const toggle = page.locator('button:has-text("转为任务")')
-    if (await toggle.isVisible().catch(() => false)) {
-      await toggle.click()
-      await page.waitForTimeout(300)
-    }
+    await toggleTaskViaKeyboard(page)
   }
 }
 
@@ -69,7 +38,7 @@ export async function runJourney2(page: Page) {
   // ===== AC-6 创建项目 A =====
   try {
     await createProject(page, PROJECT_A)
-    await expect(page.locator('aside')).toContainText(PROJECT_A)
+    await expect(page.locator('aside').first()).toContainText(PROJECT_A)
     results.push({ name: 'AC-6 创建项目 A', pass: true })
   } catch (e: any) {
     results.push({ name: 'AC-6 创建项目 A', pass: false, detail: e.message })
@@ -92,7 +61,7 @@ export async function runJourney2(page: Page) {
   // ===== AC-6 创建项目 B =====
   try {
     await createProject(page, PROJECT_B)
-    await expect(page.locator('aside')).toContainText(PROJECT_B)
+    await expect(page.locator('aside').first()).toContainText(PROJECT_B)
     results.push({ name: 'AC-6 创建项目 B', pass: true })
   } catch (e: any) {
     results.push({ name: 'AC-6 创建项目 B', pass: false, detail: e.message })
@@ -124,7 +93,7 @@ export async function runJourney2(page: Page) {
   // ===== AC-7 项目切换 =====
   try {
     // 侧边栏点项目 A
-    await page.locator('aside').locator('text=' + PROJECT_A).first().click()
+    await page.locator('aside').first().locator('text=' + PROJECT_A).first().click()
     await page.waitForTimeout(500)
     // 顶部应显示 A 项目名 (ViewHeader)
     await expect(page.locator('text=' + PROJECT_A).first()).toBeVisible()
@@ -205,7 +174,7 @@ export async function runJourney2(page: Page) {
     await statusBtn.click()
     await page.waitForTimeout(500)
     // 验证: 跳到项目 A 看板,该卡片应出现在 "已完成" 列
-    await page.locator('aside').locator('text=' + PROJECT_A).first().click()
+    await page.locator('aside').first().locator('text=' + PROJECT_A).first().click()
     await page.waitForTimeout(500)
     await page.locator('button:has-text("看板")').first().click()
     await page.waitForTimeout(500)
@@ -221,7 +190,7 @@ export async function runJourney2(page: Page) {
   // 验证: 项目 B 可从侧边栏菜单触发归档,归档后从侧边栏消失,设置页可恢复
   try {
     // 回到思维导图,确保 PROJECT_B 是当前 active (走一次 sidebar 切换)
-    await page.locator('aside').locator('text=' + PROJECT_B).first().click()
+    await page.locator('aside').first().locator('text=' + PROJECT_B).first().click()
     await page.waitForTimeout(500)
     // 打开项目 B 的更多菜单 (hover 后显示)
     const projectBRow = page.locator('aside div.group').filter({ hasText: PROJECT_B }).first()
@@ -237,7 +206,7 @@ export async function runJourney2(page: Page) {
     await page.locator('div[role="dialog"] button:has-text("归档")').click()
     await page.waitForTimeout(800)
     // 验证: 侧边栏不再显示 PROJECT_B
-    const sidebarText = await page.locator('aside').innerText()
+    const sidebarText = await page.locator('aside').first().innerText()
     if (sidebarText.includes(PROJECT_B)) {
       throw new Error(`归档后侧边栏仍显示 ${PROJECT_B}: ${sidebarText}`)
     }
@@ -252,7 +221,7 @@ export async function runJourney2(page: Page) {
     await page.locator('aside button:has-text("设置")').click()
     await page.waitForTimeout(500)
     // 找存储 Tab
-    const storageTab = page.locator('button[role="tab"]:has-text("存储")').first()
+    const storageTab = page.locator('button:has-text("存储")').first()
     if (await storageTab.isVisible({ timeout: 1500 }).catch(() => false)) {
       await storageTab.click()
       await page.waitForTimeout(300)

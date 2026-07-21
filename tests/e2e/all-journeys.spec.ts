@@ -10,6 +10,11 @@ import { runJourney7 } from './journey-7'
 import { runJourney8 } from './journey-8'
 import { runJourney9 } from './journey-9'
 import { runJourney10 } from './journey-10'
+import { runJourney11 } from './journey-11'
+import { runJourney12 } from './journey-12'
+import { runJourney13 } from './journey-13'
+import { runJourney14 } from './journey-14'
+import { runJourney15 } from './journey-15'
 
 async function clearIndexedDB(page: Page) {
   // Step 1: 在已有页面（任何页面）先清 localStorage
@@ -21,20 +26,36 @@ async function clearIndexedDB(page: Page) {
       if (k.startsWith('mindflow-')) localStorage.removeItem(k)
     })
   })
-  await page.reload()
+  await page.reload({ waitUntil: 'networkidle' })
 
-  // Step 2: 清 IndexedDB
+  // Step 2: 清 IndexedDB — 使用 Dexie table.clear() 逐表清空，避免 deleteDatabase blocked
   await page.evaluate(async () => {
-    const dexie = (window as any).__mindflowDb
-    if (dexie && dexie.delete) {
-      await dexie.delete()
+    const db = (window as any).__mindflowDb
+    if (db && db.tables) {
+      try {
+        await db.transaction('rw', db.tables, async () => {
+          for (const table of db.tables) {
+            await table.clear()
+          }
+        })
+      } catch (e) {
+        // 如果 transaction 失败，逐个尝试 clear
+        for (const table of db.tables || []) {
+          try { await table.clear() } catch (e2) { /* ignore */ }
+        }
+      }
     } else {
-      return new Promise<void>((resolve) => {
-        const req = indexedDB.deleteDatabase('mindflow-db')
-        req.onsuccess = () => resolve()
-        req.onerror = () => resolve()
-        req.onblocked = () => resolve()
-      })
+      // fallback: 轮询等待 __mindflowDb 出现后再 clear
+      for (let i = 0; i < 30; i++) {
+        const d = (window as any).__mindflowDb
+        if (d && d.tables) {
+          await d.transaction('rw', d.tables, async () => {
+            for (const t of d.tables) { await t.clear() }
+          })
+          return
+        }
+        await new Promise((r) => setTimeout(r, 100))
+      }
     }
   })
 
@@ -127,7 +148,38 @@ test.describe('MindFlow E2E – All Journeys', () => {
   })
 
   test('Journey 10 – 只读分享链接 (C2) + 节点附件 (C5)', async ({ page }) => {
+    await clearIndexedDB(page)
     const results = await runJourney10(page)
+    await assertResults(results)
+  })
+
+  test('Journey 11 – 导入导出 (S2): Settings JSON + 画布 PNG/SVG/Markdown/PDF', async ({ page }) => {
+    await clearIndexedDB(page)
+    const results = await runJourney11(page)
+    await assertResults(results)
+  })
+
+  test('Journey 12 – 甘特图 (C1) + 最近编辑列表 (S6)', async ({ page }) => {
+    await clearIndexedDB(page)
+    const results = await runJourney12(page)
+    await assertResults(results)
+  })
+
+  test('Journey 13 – 大纲编辑器 (S1): 文本编辑/Enter/Tab/缩进/同步', async ({ page }) => {
+    await clearIndexedDB(page)
+    const results = await runJourney13(page)
+    await assertResults(results)
+  })
+
+  test('Journey 14 – 主题切换 (M8) + 看板新建任务 + Pomodoro 番茄钟', async ({ page }) => {
+    await clearIndexedDB(page)
+    const results = await runJourney14(page)
+    await assertResults(results)
+  })
+
+  test('Journey 15 – NodeDetail 节点详情 + 全局看板', async ({ page }) => {
+    await clearIndexedDB(page)
+    const results = await runJourney15(page)
     await assertResults(results)
   })
 })

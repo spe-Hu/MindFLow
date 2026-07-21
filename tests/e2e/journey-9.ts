@@ -5,6 +5,7 @@
 // 无需真实 Supabase 后端即可验证 sync 流程。
 
 import { Page, expect } from '@playwright/test'
+import { addMindMapChildViaAPI, toggleTaskViaKeyboard } from './helpers'
 
 const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 const MOCK_USER_ID = 'e2e-sync-test-user'
@@ -200,20 +201,9 @@ async function createLocalData(page: Page) {
   await page.waitForSelector('g.smm-node', { timeout: 10000 })
   await page.waitForTimeout(1000)
 
-  // 创建子节点
-  await page.locator('g.smm-node').first().click({ force: true })
-  await page.waitForTimeout(300)
-  await page.keyboard.press('Tab')
-  await page.waitForTimeout(400)
-  await page.keyboard.type('云端同步任务节点', { delay: 30 })
-  await page.keyboard.press('Enter')
-  await page.waitForTimeout(600)
-
-  // 转为任务
-  await page.locator('g.smm-node').nth(1).click({ force: true })
-  await page.waitForTimeout(300)
-  await page.keyboard.press('t')
-  await page.waitForTimeout(800)
+  // 创建子节点并转为任务
+  await addMindMapChildViaAPI(page, '云端同步任务节点')
+  await toggleTaskViaKeyboard(page)
 
   // 等待 syncTasksFromTree debounce 完成
   await page.waitForTimeout(1500)

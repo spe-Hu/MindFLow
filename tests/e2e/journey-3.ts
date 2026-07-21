@@ -7,6 +7,7 @@
 
 import { Page, expect } from '@playwright/test'
 import { enterLocalMode, createProject } from './journey-1'
+import { addMindMapChildViaAPI, toggleTaskViaKeyboard } from './helpers'
 
 const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 
@@ -22,58 +23,9 @@ const NODE_X_PLAIN = 'X-会议纪要'
 
 // helper: 添加子节点 (自动选中,可选标记为任务)
 async function addChildAndMaybeTask(page: Page, text: string, alsoMarkAsTask: boolean) {
-  // 等待 simple-mind-map 节点渲染完成（createProject 后导航完成但画布可能还没挂载）
-  await page.waitForSelector('g.smm-node', { state: 'visible', timeout: 10000 })
-  await page.waitForTimeout(400)
-  // headless 下 Tab 不总是触发 edit-wrap,加 retry 机制
-  let editWrap = page.locator('div.smm-node-edit-wrap')
-  let retries = 0
-  while (retries < 3) {
-    const rootNodeEl = page.locator('g.smm-node').first()
-    await rootNodeEl.scrollIntoViewIfNeeded().catch(() => {})
-    await rootNodeEl.click({ force: true })
-    await page.waitForTimeout(300)
-    await page.keyboard.press('Tab')
-    await page.waitForTimeout(500)
-    editWrap = page.locator('div.smm-node-edit-wrap')
-    if (await editWrap.count() > 0) break
-    retries++
-  }
-  if (await editWrap.count() === 0) {
-    throw new Error(`Failed to create child node for: ${text} (edit-wrap not found after 3 retries)`)
-  }
-  await editWrap.pressSequentially(text, { delay: 30 })
-  await editWrap.press('Enter')
-  await page.waitForTimeout(800)
+  await addMindMapChildViaAPI(page, text)
   if (alsoMarkAsTask) {
-    // 先尝试浮动工具栏, fallback 到 __mindMap API
-    const toggle = page.locator('button:has-text("转为任务")')
-    if (await toggle.isVisible().catch(() => false)) {
-      await toggle.click()
-      await page.waitForTimeout(400)
-    } else {
-      // headless 下浮动工具栏常因 activeNodePos 计算失败而不渲染,
-      // 但 renderer.activeNodeList[0] 通常仍有节点 => 用 evaluate 安全标记
-      await page.evaluate((t) => {
-        const mm = (window as any).__mindMap
-        if (!mm) throw new Error('__mindMap not found')
-        // 优先 activeNode, fallback 到 nodeList 文本匹配
-        let target = mm.renderer?.activeNodeList?.[0]
-        if (!target || target.nodeData?.data?.text !== t) {
-          target = mm.renderer?.nodeList?.find((n: any) => n.nodeData?.data?.text === t)
-        }
-        if (!target) throw new Error(`Active node not found for: ${t}`)
-        mm.execCommand('SET_NODE_DATA', target, {
-          _isTask: true,
-          _status: 'todo',
-          _priority: 'medium',
-          fillColor: '#eff6ff',
-          borderColor: '#93c5fd',
-          color: '#1e40af',
-        })
-      }, text)
-      await page.waitForTimeout(400)
-    }
+    await toggleTaskViaKeyboard(page)
   }
 }
 

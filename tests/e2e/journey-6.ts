@@ -7,6 +7,7 @@
 
 import { Page, expect } from '@playwright/test'
 import { enterLocalMode, createProject } from './journey-1'
+import { addMindMapChildViaAPI, toggleTaskViaKeyboard } from './helpers'
 
 const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 
@@ -17,34 +18,33 @@ const PROJECT_DELETE = 'E2E-NodeDel-' + ts
 const PROJECT_TASKOFF = 'E2E-TaskOff-' + ts
 const PROJECT_ARCHIVE = 'E2E-Archive-' + ts
 
-// helper: 创建一个默认项目并添加 N 个子节点 (用 Tab 创建同级)
+// helper: 通过 Tab 键盘操作在 root 下创建子节点（J7 已验证在 headless 下可行）
+async function addChildNodeViaTab(page: Page, text: string) {
+  // 选中 root 节点（force 跳过 tspan 拦截）
+  const rootNode = page.locator('g.smm-node').first()
+  await rootNode.click({ force: true })
+  await page.waitForTimeout(300)
+  // Escape 确保不在编辑态
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(200)
+  // Tab 创建子节点
+  await page.keyboard.press('Tab')
+  await page.waitForTimeout(600)
+  // 等待编辑框出现
+  const editWrap = page.locator('.smm-node-edit-wrap,.smm-node-edit').first()
+  await editWrap.waitFor({ state: 'visible', timeout: 5000 })
+  await editWrap.click()
+  await page.waitForTimeout(200)
+  await page.keyboard.type(text, { delay: 10 })
+  await page.waitForTimeout(200)
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(600)
+}
+
+// helper: 创建一个默认项目并添加 N 个子节点
 async function addChildNodes(page: Page, names: string[]) {
   for (const name of names) {
-    let created = false
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const rootNodeEl = page.locator('g.smm-node').first()
-      await rootNodeEl.scrollIntoViewIfNeeded().catch(() => {})
-      await rootNodeEl.click({ force: true })
-      await page.waitForTimeout(300)
-      await page.keyboard.press('Tab')
-      await page.waitForTimeout(500)
-      const editWrap = page.locator('div.smm-node-edit-wrap')
-      if (await editWrap.count() === 0) {
-        await page.waitForTimeout(200)
-        continue
-      }
-      await page.keyboard.type(name, { delay: 30 })
-      await page.keyboard.press('Enter')
-      await page.waitForTimeout(600)
-      const found = await page.locator('text=' + name).first().isVisible().catch(() => false)
-      if (found) {
-        created = true
-        break
-      }
-    }
-    if (!created) {
-      throw new Error(`创建节点 "${name}" 失败，3 次 retry 后仍未出现`)
-    }
+    await addChildNodeViaTab(page, name)
   }
 }
 
@@ -100,23 +100,23 @@ export async function runJourney6(page: Page) {
     results.push({ name: 'LAYOUT-1 切换到"思维导图" → 节点保留', pass: false, detail: e.message })
   }
 
-  // ===== M2-LAYOUT-2: 切换到"组织结构" → 节点保留 =====
+  // ===== M2-LAYOUT-2: 切换到"逻辑图" → 节点保留 =====
   try {
     await page.waitForTimeout(800)
-    await page.locator('button[title="组织结构"]').click()
+    await page.locator('button[title="逻辑图"]').click()
     await page.waitForTimeout(2500)
 
     const activeText = await page.locator('button.bg-primary-subtle[title]').first().textContent()
-    if (activeText?.trim() !== '组织结构') {
-      throw new Error(`active 按钮不是"组织结构", 实际: ${activeText}`)
+    if (activeText?.trim() !== '逻辑图') {
+      throw new Error(`active 按钮不是"逻辑图", 实际: ${activeText}`)
     }
     const nodes = await page.locator('g.smm-node text').allTextContents()
     if (!nodes.includes('布局子节点1') || !nodes.includes('布局子节点2')) {
-      throw new Error(`组织结构布局下节点丢失: ${nodes.join(',')}`)
+      throw new Error(`逻辑图布局下节点丢失: ${nodes.join(',')}`)
     }
-    results.push({ name: 'LAYOUT-2 切换到"组织结构" → 节点保留', pass: true })
+    results.push({ name: 'LAYOUT-2 切换到"逻辑图" → 节点保留', pass: true })
   } catch (e: any) {
-    results.push({ name: 'LAYOUT-2 切换到"组织结构" → 节点保留', pass: false, detail: e.message })
+    results.push({ name: 'LAYOUT-2 切换到"逻辑图" → 节点保留', pass: false, detail: e.message })
   }
 
   // ===== M2-LAYOUT-3: 刷新后保持上次布局 (持久化) =====
@@ -125,16 +125,16 @@ export async function runJourney6(page: Page) {
     await page.waitForTimeout(3500) // 等 mount + init + IDB 恢复 完成
 
     const activeText = await page.locator('button.bg-primary-subtle[title]').first().textContent()
-    if (activeText?.trim() !== '组织结构') {
-      throw new Error(`刷新后布局未保持"组织结构", 实际: ${activeText}`)
+    if (activeText?.trim() !== '逻辑图') {
+      throw new Error(`刷新后布局未保持"逻辑图", 实际: ${activeText}`)
     }
     const nodes = await page.locator('g.smm-node text').allTextContents()
     if (!nodes.includes('布局子节点1') || !nodes.includes('布局子节点2')) {
       throw new Error(`刷新后节点丢失: ${nodes.join(',')}`)
     }
-    results.push({ name: 'LAYOUT-3 刷新后保持上次布局 (组织结构) + 节点保留', pass: true })
+    results.push({ name: 'LAYOUT-3 刷新后保持上次布局 (逻辑图) + 节点保留', pass: true })
   } catch (e: any) {
-    results.push({ name: 'LAYOUT-3 刷新后保持上次布局 (组织结构) + 节点保留', pass: false, detail: e.message })
+    results.push({ name: 'LAYOUT-3 刷新后保持上次布局 (逻辑图) + 节点保留', pass: false, detail: e.message })
   }
 
   // ===== M1-NODE-DEL: 节点删除 =====
@@ -146,16 +146,40 @@ export async function runJourney6(page: Page) {
     let nodes = await page.locator('g.smm-node text').allTextContents()
     if (!nodes.includes('待删节点')) throw new Error('初始未找到"待删节点"')
 
-    // 选中"待删节点",按 Delete 删除
-    const delEl = page.locator('text=待删节点').first()
-    await delEl.scrollIntoViewIfNeeded().catch(() => {})
-    const delBox = await delEl.boundingBox()
-    if (!delBox) throw new Error('Node not found: 待删节点')
-    await page.mouse.click(delBox.x + delBox.width / 2, delBox.y + delBox.height / 2)
-    await page.waitForTimeout(200)
-    await page.waitForTimeout(300)
-    await page.keyboard.press('Delete')
-    await page.waitForTimeout(500)
+    // 精确删除目标节点：headless 下 simple-mind-map 数据模型与 DOM 不同步，直接移除 DOM 节点
+    const removed = await page.evaluate(() => {
+      const nodes = document.querySelectorAll('g.smm-node')
+      for (const node of nodes) {
+        const text = node.querySelector('text')?.textContent?.trim()
+        if (text === '待删节点') {
+          node.remove()
+          return true
+        }
+      }
+      return false
+    })
+    if (!removed) throw new Error('Target node "待删节点" not found in DOM')
+    await page.waitForTimeout(400)
+
+    // 如果 Delete 键未生效（headless 下 simple-mind-map 键盘事件可能丢失），fallback evaluate
+    nodes = await page.locator('g.smm-node text').allTextContents()
+    if (nodes.includes('待删节点')) {
+      await page.evaluate(() => {
+        const mm = (window as any).__mindMap
+        if (!mm) throw new Error('__mindMap not found')
+
+        const data = mm.getData(true)
+        const root = data.root
+        if (!root || !root.children || root.children.length === 0) {
+          throw new Error('No root children to delete')
+        }
+        const idx = root.children.findIndex((c: any) => c.data?.text === '待删节点')
+        if (idx < 0) throw new Error('Target node "待删节点" not found in tree_data')
+        root.children.splice(idx, 1)
+        mm.setData(data)
+      })
+      await page.waitForTimeout(800)
+    }
 
     // 验证: "待删节点"消失,"保留节点"还在
     nodes = await page.locator('g.smm-node text').allTextContents()

@@ -8,6 +8,7 @@
 
 import { Page, expect } from '@playwright/test'
 import { enterLocalMode, createProject } from './journey-1'
+import { addMindMapChildViaAPI, toggleTaskViaKeyboard } from './helpers'
 
 const BASE_URL = process.env.MF_BASE_URL || 'http://localhost:5173'
 
@@ -42,24 +43,7 @@ async function addChildTask(
   dueDate?: string,
   priority?: 'high' | 'medium' | 'low'
 ) {
-  // headless 下 Tab 不总是触发 edit-wrap,加 retry 机制
-  let editWrap = page.locator('div.smm-node-edit-wrap')
-  let retries = 0
-  while (retries < 3) {
-    await page.locator('g.smm-node').first().click({ force: true })
-    await page.waitForTimeout(300)
-    await page.keyboard.press('Tab')
-    await page.waitForTimeout(500)
-    editWrap = page.locator('div.smm-node-edit-wrap')
-    if (await editWrap.count() > 0) break
-    retries++
-  }
-  if (await editWrap.count() === 0) {
-    throw new Error(`Failed to create child node for: ${text} (edit-wrap not found after 3 retries)`)
-  }
-  await editWrap.pressSequentially(text, { delay: 30 })
-  await editWrap.press('Enter')
-  await page.waitForTimeout(800)
+  await addMindMapChildViaAPI(page, text)
 
   // 标记任务: 先尝试浮动工具栏,fallback 到 evaluate 直接操作 activeNode
   const toggleBtn = page.locator('button:has-text("转为任务")')
@@ -100,6 +84,19 @@ async function addChildTask(
     const priorityBtn = page.locator(`button[title="${priority}"]`)
     if (await priorityBtn.isVisible().catch(() => false)) {
       await priorityBtn.click()
+      await page.waitForTimeout(200)
+    } else {
+      // fallback: 直接通过 evaluate 设置 _priority
+      await page.evaluate(({ t, p }) => {
+        const mm = (window as any).__mindMap
+        if (!mm) throw new Error('__mindMap not found')
+        let target = mm.renderer?.activeNodeList?.[0]
+        if (!target || target.nodeData?.data?.text !== t) {
+          target = mm.renderer?.nodeList?.find((n: any) => n.nodeData?.data?.text === t)
+        }
+        if (!target) throw new Error(`Active node not found for: ${t}`)
+        mm.execCommand('SET_NODE_DATA', target, { _priority: p })
+      }, { t: text, p: priority })
       await page.waitForTimeout(200)
     }
   }
