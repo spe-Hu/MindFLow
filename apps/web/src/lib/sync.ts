@@ -6,6 +6,7 @@ import type {
   LocalMindmap,
   LocalTask,
 } from '@/lib/db'
+import { db } from '@/lib/db'
 import type {
   ProjectInsert,
   MindmapInsert,
@@ -105,14 +106,14 @@ export async function syncTaskToCloud(task: LocalTask): Promise<void> {
   const userId = getUserId()
   if (!userId || !isOnline()) return
 
-  // Find the mindmap_id for this project
-  const { data: mindmapData } = await supabase
-    .from('mindmaps')
-    .select('id')
-    .eq('project_id', task.project_id)
-    .maybeSingle()
-
-  const mindmapId = mindmapData?.id ?? task.project_id
+  // 从本地 IndexedDB 获取 mindmap_id（避免依赖云端查询，防止 RLS/时序/外键约束问题）
+  const localMindmap = await db.mindmaps.where('project_id').equals(task.project_id).first()
+  if (!localMindmap) {
+    const msg = `[Sync] 本地找不到项目 ${task.project_id} 的导图，无法同步任务 "${task.title}"`
+    devWarn(msg)
+    throw new Error(msg)
+  }
+  const mindmapId = localMindmap.id
 
   const payload: TaskInsert = {
     id: task.id,
@@ -132,9 +133,26 @@ export async function syncTaskToCloud(task: LocalTask): Promise<void> {
   }
 
   const { error } = await (supabase.from('tasks').upsert(payload as any, { onConflict: 'id' }) as any)
+
   if (error) {
+    const msg = error.message || String(error)
+    if (
+      msg.includes('schema cache') ||
+      (msg.includes('Could not find') && msg.includes('column'))
+    ) {
+      const safePayload = { ...payload }
+      delete (safePayload as any).attachments
+      const { error: retryErr } = await (supabase
+        .from('tasks')
+        .upsert(safePayload as any, { onConflict: 'id' }) as any)
+      if (!retryErr) {
+        devLog('[Sync] Fallback sync succeeded for task:', task.title)
+        return
+      }
+      devWarn('[Sync] Fallback sync also failed:', retryErr)
+    }
     devWarn('Sync task failed:', error)
-    throw new Error(`任务 "${task.title}" 同步失败: ${error.message}`)
+    throw new Error(`任务 "${task.title}" 同步失败: ${msg}`)
   }
 }
 
@@ -257,6 +275,7 @@ export async function fetchAllFromCloud(): Promise<{
     sort_order: t.sort_order ?? 0,
     user_id: t.user_id,
     pomodoro_count: t.pomodoro_count ?? undefined,
+    attachments: t.attachments ?? undefined,
   }))
 
   return { projects, mindmaps, tasks }

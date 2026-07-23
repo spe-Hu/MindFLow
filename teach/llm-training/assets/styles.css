@@ -1,0 +1,365 @@
+/* ============================================
+   Teach Workspace — Shared Stylesheet
+   Tufte-inspired, light theme, Chinese-first
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --color-text:       #1a1a1a;
+  --color-text-muted: #555555;
+  --color-text-faint: #888888;
+  --color-bg:         #fefefe;
+  --color-bg-alt:     #f7f7f5;
+  --color-bg-code:    #f4f4f2;
+  --color-border:     #e0e0dc;
+  --color-accent:     #7C5CFC;
+  --color-accent-soft:#f0ebff;
+  --color-accent-dark:#5a3fd6;
+  --color-note:       #fff8e6;
+  --color-note-border:#f5c542;
+  --color-success:    #2e7d32;
+  --color-success-bg: #e8f5e9;
+
+  --font-serif:  'Noto Serif SC', Georgia, serif;
+  --font-sans:   'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --font-mono:   'JetBrains Mono', 'SF Mono', monospace;
+
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.5rem;    /* 8px */
+  --space-md: 1rem;      /* 16px */
+  --space-lg: 1.5rem;    /* 24px */
+  --space-xl: 2.5rem;    /* 40px */
+  --space-2xl: 4rem;     /* 64px */
+}
+
+* { box-sizing: border-box; }
+
+html {
+  font-size: 18px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.75;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+/* Layout */
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
+}
+
+.lesson-header {
+  padding: var(--space-2xl) 0 var(--space-xl);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-xl);
+}
+
+.lesson-meta {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-sm);
+}
+
+.lesson-number {
+  display: inline-block;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-dark);
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+h1 {
+  font-family: var(--font-serif);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text);
+}
+
+h2 {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: var(--space-xl) 0 var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+h3 {
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: var(--space-lg) 0 var(--space-sm);
+  color: var(--color-text);
+}
+
+p {
+  margin: 0 0 var(--space-md);
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+a:hover {
+  border-bottom-color: var(--color-accent);
+}
+
+/* Sidenotes (Tufte-style marginalia) */
+.sidenote {
+  float: right;
+  clear: right;
+  margin-right: -280px;
+  width: 240px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  vertical-align: baseline;
+  position: relative;
+}
+
+.sidenote-number {
+  font-family: var(--font-serif);
+  font-size: 0.75rem;
+  color: var(--color-accent);
+  vertical-align: super;
+}
+
+/* For screens too narrow for sidenotes */
+@media (max-width: 1100px) {
+  .sidenote {
+    float: none;
+    margin: var(--space-md) 0;
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-alt);
+    border-radius: 6px;
+    border-left: 3px solid var(--color-accent);
+  }
+}
+
+/* Figures & Diagrams */
+figure {
+  margin: var(--space-xl) 0;
+  padding: 0;
+}
+
+figure svg, figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+figcaption {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: var(--space-sm);
+}
+
+/* Code blocks */
+pre {
+  background: var(--color-bg-code);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: var(--space-md);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  margin: var(--space-md) 0 var(--space-lg);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--color-bg-code);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #c7254e;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* Callout boxes */
+.callout {
+  margin: var(--space-lg) 0;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 8px;
+  border-left: 4px solid var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.callout.note {
+  border-left-color: var(--color-note-border);
+  background: var(--color-note);
+}
+
+.callout.success {
+  border-left-color: var(--color-success);
+  background: var(--color-success-bg);
+}
+
+.callout-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: var(--space-xs);
+}
+
+.callout p:last-child {
+  margin-bottom: 0;
+}
+
+/* Exercises */
+.exercise {
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: var(--space-lg);
+  margin: var(--space-xl) 0;
+}
+
+.exercise-title {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.exercise-question {
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.exercise-question:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-md) 0 var(--space-lg);
+  font-size: 0.9rem;
+}
+
+th, td {
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Lists */
+ul, ol {
+  margin: 0 0 var(--space-md);
+  padding-left: 1.5em;
+}
+
+li {
+  margin-bottom: var(--space-xs);
+}
+
+/* Footer & Navigation */
+.lesson-footer {
+  margin-top: var(--space-2xl);
+  padding: var(--space-xl) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.next-lesson {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-accent-soft);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--color-text);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.next-lesson:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 92, 252, 0.15);
+  border-bottom-color: transparent;
+}
+
+.next-lesson-label {
+  font-size: 0.75rem;
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.next-lesson-title {
+  font-weight: 600;
+  color: var(--color-accent-dark);
+}
+
+/* Resource recommendation */
+.recommended {
+  margin-top: var(--space-xl);
+  padding: var(--space-lg);
+  background: var(--color-bg-alt);
+  border-radius: 10px;
+}
+
+.recommended h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+/* Math */
+.math {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-style: italic;
+  background: var(--color-bg-code);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  html { font-size: 16px; }
+  h1 { font-size: 1.7rem; }
+  h2 { font-size: 1.3rem; }
+  .container { padding: 0 var(--space-md); }
+}

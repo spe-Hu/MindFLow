@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第2课：Multi-Head Attention 与 位置编码 — 为什么要"多头并进"？</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="container">
+
+<header class="lesson-header">
+  <div class="lesson-meta">
+    <span class="lesson-number">Lesson 02</span> / 大模型训练全流程
+  </div>
+  <h1>Multi-Head Attention 与位置编码</h1>
+  <p style="color: var(--color-text-muted); font-size: 1.05rem; margin:0;">
+    单一视角只看到一种关系，真正理解一句话需要"多头并进"。但还有一个前提：模型得知道"谁在谁前面"。
+  </p>
+</header>
+
+<!-- Recap -->
+<div class="callout success" style="margin-bottom: var(--space-xl);">
+  <div class="callout-title">上节课回顾</div>
+  <p style="margin:0;">Self-Attention 让每个词同时看向整句话，用 Q/K/V 算出谁该关注谁。但它有两个<strong>尚未解决的硬伤</strong>：（1）一个头只能捕捉一种关系类型；（2）模型完全不认识"句子顺序"——你把词打乱，它看不出区别。</p>
+</div>
+
+<!-- Section 1: Why Multi-Head -->
+<h2>1. 为什么一个头不够用？</h2>
+
+<p>回到这个例子：</p>
+
+<blockquote style="font-family: var(--font-serif); font-size: 1.1rem; padding: var(--space-md) var(--space-lg); background: var(--color-bg-alt); border-radius: 8px; border-left: 3px solid var(--color-accent); margin: var(--space-lg) 0;">
+  "猫坐在垫子上，因为它很温暖。"
+</blockquote>
+
+<p>当模型读到"它"时，Self-Attention 会帮它找到"垫子"（指代关系）。但注意——这句话还隐藏了<span class="sidenote"><span class="sidenote-number">1</span> "坐在"是一个动宾搭配，不是指代关系。一个 Query只能捕获一种模式，这就是为什么需要多头。</span><strong>至少两层</strong>需要被同时理解：</p>
+
+<ul>
+  <li><strong>指代关系</strong>：「它」→「垫子」</li>
+  <li><strong>动宾搭配</strong>：「坐」→「垫子」</li>
+  <li><strong>因果逻辑</strong>：「温暖」→「坐」的原因</li>
+</ul>
+
+<p>如果只有一个头，模型会做什么？它只能选择<span class="sidenote"><span class="sidenote-number">2</span> 在 softmax 的约束下，注意力权重总和为1。意味着加强一个关系必然削弱另一个。</span><strong>其中一种关系</strong>来分配注意力。分配权重时，强化了指代关系就会削弱动宾关系——这是零和博弈。</p>
+
+<p><strong>Multi-Head Attention 的解法</strong>：把参数空间切成好几份，每个"头"独立算自己的 Q/K/V，各自捕捉不同类型的关系：</p>
+
+<figure>
+  <svg viewBox="0 0 600 320" style="width:100%;max-width:560px;">
+    <defs>
+      <marker id="arrow2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#aaa"/>
+      </marker>
+    </defs>
+
+    <!-- Input tokens -->
+    <text x="300" y="18" text-anchor="middle" font-size="12" fill="#888">输入序列："猫坐在垫子上，因为它很温暖"</text>
+    
+    <!-- Head 1 box -->
+    <rect x="20" y="40" width="170" height="120" rx="8" fill="#f0ebff" stroke="#7C5CFC" stroke-width="1.5"/>
+    <text x="105" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#5a3fd6">Head 1</text>
+    <text x="105" y="85" text-anchor="middle" font-size="11" fill="#5a3fd6">关注指代关系</text>
+    <text x="105" y="105" text-anchor="middle" font-size="10" fill="#888">强: 它→垫子</text>
+    <text x="105" y="122" text-anchor="middle" font-size="10" fill="#888">弱: 其他</text>
+    <text x="105" y="142" text-anchor="middle" font-size="10" fill="#aaa">权重和=1</text>
+    
+    <!-- Arrow down -->
+    <line x1="105" y1="170" x2="105" y2="200" stroke="#aaa" stroke-width="1.5" marker-end="url(#arrow2)"/>
+    
+    <!-- Head 2 box -->
+    <rect x="215" y="40" width="170" height="120" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+    <text x="300" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#e65100">Head 2</text>
+    <text x="300" y="85" text-anchor="middle" font-size="11" fill="#e65100">关注动宾搭配</text>
+    <text x="300" y="105" text-anchor="middle" font-size="10" fill="#e65100">强: 坐→垫子</text>
+    <text x="300" y="122" text-anchor="middle" font-size="10" fill="#888">弱: 其他</text>
+    <text x="300" y="142" text-anchor="middle" font-size="10" fill="#aaa">权重和=1</text>
+    
+    <!-- Arrow down -->
+    <line x1="300" y1="170" x2="300" y2="200" stroke="#aaa" stroke-width="1.5" marker-end="url(#arrow2)"/>
+    
+    <!-- Head 3 box -->
+    <rect x="410" y="40" width="170" height="120" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+    <text x="495" y="62" text-anchor="middle" font-size="13" font-weight="600" fill="#2e7d32">Head 3</text>
+    <text x="495" y="85" text-anchor="middle" font-size="11" fill="#2e7d32">关注因果逻辑</text>
+    <text x="495" y="105" text-anchor="middle" font-size="10" fill="#2e7d32">强: 温暖→坐</text>
+    <text x="495" y="122" text-anchor="middle" font-size="10" fill="#888">弱: 其他</text>
+    <text x="495" y="142" text-anchor="middle" font-size="10" fill="#aaa">权重和=1</text>
+    
+    <!-- Arrow down -->
+    <line x1="495" y1="170" x2="495" y2="200" stroke="#aaa" stroke-width="1.5" marker-end="url(#arrow2)"/>
+    
+    <!-- Concat box -->
+    <rect x="100" y="210" width="400" height="55" rx="8" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="300" y="235" text-anchor="middle" font-size="13" fill="#fff" font-weight="600">Concat → 线性投影 → 融合输出</text>
+    <text x="300" y="255" text-anchor="middle" font-size="10" fill="#aaa">[头1输出 | 头2输出 | 头3输出] × W_o</text>
+    
+    <text x="300" y="298" text-anchor="middle" font-size="12" fill="#888" font-style="italic">图 1: 每个头独立学习一种关系模式，最后拼接合成</text>
+  </svg>
+  <figcaption>图 1：Multi-Head 中每个头独立关注不同的语言模式</figcaption>
+</figure>
+
+<p>论文原文用了 8 个头，现代 LLM 通常用 8、12、16 甚至 32 个头。<span class="sidenote"><span class="sidenote-number">3</span> GPT-3 用了 96 个头。注意头太多了不一定更好——每个头的维度 d_k = d_model / num_heads。头越多，每个头能"看到"的维度就越少，可能丢失细粒度特征。</span>关键是：所有头<strong>并行</strong>计算，然后拼接（Concatenate），最后乘一个投影矩阵统一回原始维度。</p>
+
+<!-- Section 2: Math -->
+<h2>2. 多头注意力的计算</h2>
+
+<p>把原始的 Q/K/V 投影到 h 个不同的子空间，每个子空间独立做 attention：</p>
+
+<pre><code>head_i = Attention(Q·W_i^Q,  K·W_i^K,  V·W_i^V)
+
+MultiHead(Q,K,V) = Concat(head_1, ..., head_h) · W^O</code></pre>
+
+<p>其中投影矩阵的形状：</p>
+
+<table>
+  <tr><th>矩阵</th><th>形状</th><th>作用</th></tr>
+  <tr><td>W<sub>i</sub><sup>Q</sup></td><td>[d_model, d_k]</td><td>第 i 个头的 Query 投影</td></tr>
+  <tr><td>W<sub>i</sub><sup>K</sup></td><td>[d_model, d_k]</td><td>第 i 个头的 Key 投影</td></tr>
+  <tr><td>W<sub>i</sub><sup>V</sup></td><td>[d_model, d_v]</td><td>第 i 个头的 Value 投影</td></tr>
+  <tr><td>W<sup>O</sup></td><td>[h·d_v, d_model]</td><td>拼接后的输出投影</td></tr>
+</table>
+
+<p>实践里的约束简洁漂亮：<code>d_k = d_v = d_model / h</code>。比如 GPT-3 的 d_model=12288，h=96，那每个头的维度就是<span class="sidenote"><span class="sidenote-number">4</span> 这解释了为什么"头多了不一定更好"——每个头在 128 维的小空间里工作，能学会的关系模式受到容量限制。</span><strong>128</strong>。</p>
+
+<h3>PyTorch 实现（不到20行核心）</h3>
+
+<pre><code>import torch
+import torch.nn as nn
+import math
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model=512, num_heads=8):
+        super().__init__()
+        assert d_model % num_heads == 0
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_k = d_model // num_heads   # 每个头的维度
+        
+        # Q/K/V/O 的线性投影
+        self.W_q = nn.Linear(d_model, d_model)
+        self.W_k = nn.Linear(d_model, d_model)
+        self.W_v = nn.Linear(d_model, d_model)
+        self.W_o = nn.Linear(d_model, d_model)
+    
+    def forward(self, x, mask=None):
+        batch, seq_len, _ = x.shape
+        h = self.num_heads
+        
+        # (1) 线性投影 + 按头拆分
+        Q = self.W_q(x).view(batch, seq_len, h, self.d_k).transpose(1, 2)
+        K = self.W_k(x).view(batch, seq_len, h, self.d_k).transpose(1, 2)
+        V = self.W_v(x).view(batch, seq_len, h, self.d_k).transpose(1, 2)
+        # 现在形状: [batch, h, seq, d_k]
+        
+        # (2) 每个头独立算 Scaled Dot-Product Attention
+        scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, float('-inf'))
+        attn = torch.softmax(scores, dim=-1)
+        out = torch.matmul(attn, V)  # [batch, h, seq, d_k]
+        
+        # (3) 拼接所有头，投影回 d_model
+        out = out.transpose(1, 2).contiguous().view(batch, seq_len, self.d_model)
+        return self.W_o(out)
+
+# 试一下
+x = torch.randn(2, 10, 512)  # batch=2, seq=10, dim=512
+mha = MultiHeadAttention(d_model=512, num_heads=8)
+print(mha(x).shape)  # [2, 10, 512] —— 和输入一样长，方便堆叠层</code></pre>
+
+<p>看懂上面三个步骤的 <code>.view() + .transpose()</code> 操作，你就搞懂了 Multi-Head 最微妙的部分：<strong>怎样把一个大向量切成多份，并行计算，再拼回来</strong>。</p>
+
+<!-- Section 3: Permutation Problem -->
+<h2>3. Transformer 的大漏洞：顺序盲</h2>
+
+<p>现在有一个关键问题。Self-Attention 的计算方式，是完全<span class="sidenote"><span class="sidenote-number">5</span> "置换不变性"（permutation invariance）在某些任务里是优势（如集合预测），但在序列建模里是致命缺陷。因为语言的意义高度依赖词序。</span><strong>位置无关的</strong>——你把句子里的词全部打乱顺序，Attention 矩阵只是行和列跟着重新排列，计算结果本身没有任何变化。</p>
+
+<p>试试这个思想实验：</p>
+
+<blockquote style="font-family: var(--font-serif); font-size: 1.05rem; padding: var(--space-md) var(--space-lg); background: var(--color-bg-alt); border-radius: 8px; margin: var(--space-lg) 0;">
+  A: "猫追老鼠"<br>
+  B: "老鼠追猫"
+</blockquote>
+
+<p>对 Transformer 来说，这两句子的 Self-Attention 矩阵在数学上几乎<span class="sidenote"><span class="sidenote-number">6</span> 严格来说不是完全相同，因为 embedding 层每个词有唯一的向量。但错序后的"老鼠追猫"会被当作一个全新的、与"猫追老鼠"毫无关系的组合来处理——模型不知道它们共享相同的词，只是顺序不同。</span><strong>相同</strong>，只是矩阵的行/列对调了。模型不知道 A 和 B 是完全相反的意思。</p>
+
+<div class="callout note">
+  <div class="callout-title">核心洞察</div>
+  <p>Self-Attention 只能告诉你<strong>哪些词在相互作用</strong>，但不能告诉你<strong>谁在谁前面</strong>。词序是语言意义的核心载体——必须额外告诉模型。</p>
+</div>
+
+<!-- Section 4: Positional Encoding -->
+<h2>4. 位置编码：给每个座位贴编号</h2>
+
+<h3>4.1 原始方案：正弦/余弦位置编码</h3>
+
+<p>最简单的做法是给每个位置生成一个唯一向量，然后加到词向量上。原始 Transformer 论文用的是<span class="sidenote"><span class="sidenote-number">7</span> 选正弦函数而不是学出来的向量，有两个好处：（1）可以外推到训练时没见过的更长序列；（2）相对位置关系（pos+k 与 pos 的差）可以通过线性变换推导出来。</span><strong>正弦波</strong>：</p>
+
+<pre><code>PE(pos, 2i)   = sin(pos / 10000^(2i / d_model))
+PE(pos, 2i+1) = cos(pos / 10000^(2i / d_model))</code></pre>
+
+<p>每个位置 pos 得到一个 d_model 维的向量。不同频率的正弦波让这些位置向量既独特又有规律——相邻位置相似，远离位置差异大。</p>
+
+<figure>
+  <svg viewBox="0 0 560 180" style="width:100%;max-width:520px;">
+    <!-- Sine wave -->
+    <path d="M20,90 Q40,50 60,90 Q80,130 100,90 Q120,50 140,90 Q160,130 180,90 Q200,50 220,90 Q240,130 260,90 Q280,50 300,90 Q320,130 340,90 Q360,50 380,90 Q400,130 420,90 Q440,50 460,90 Q480,130 500,90 Q520,50 540,90" fill="none" stroke="#7C5CFC" stroke-width="2"/>
+    <text x="280" y="30" text-anchor="middle" font-size="12" fill="#5a3fd6">高频分量：区分相邻位置</text>
+    
+    <!-- Low freq wave overlay -->
+    <path d="M20,90 Q100,60 180,90 Q260,120 340,90 Q420,60 540,90" fill="none" stroke="#e65100" stroke-width="2" opacity="0.7" stroke-dasharray="5,3"/>
+    <text x="280" y="165" text-anchor="middle" font-size="12" fill="#e65100">低频分量：区分远距离位置</text>
+    
+    <!-- X-axis -->
+    <line x1="20" y1="90" x2="540" y2="90" stroke="#ddd" stroke-width="1"/>
+    <text x="20" y="105" font-size="10" fill="#888">pos=0</text>
+    <text x="500" y="105" font-size="10" fill="#888">pos=N</text>
+  </svg>
+  <figcaption>图 2：正弦编码中不同维度使用不同频率的波——高频区分相邻，低频区分远距</figcaption>
+</figure>
+
+<h3>4.2 现代方案：RoPE（旋转位置编码）</h3>
+
+<p>正弦编码有一个问题：位置信息与语义信息的融合是<strong>加法</strong>，模型不容易从向量中拆分出"哪部分代表含义，哪部分代表位置"。</p>
+
+<p>现代的 GPT、LLaMA、Qwen 等大模型改成了<span class="sidenote"><span class="sidenote-number">8</span> RoPE 来自 Su et al. (2021) 论文 <em>RoFormer: Enhanced Transformer with Rotary Position Embedding</em>。它的核心思想是把位置信息嵌入到注意力计算中，而不是提前加到词向量上。</span><strong>RoPE（Rotary Position Embedding）</strong>，思路更优雅：</p>
+
+<p>不是给向量"加上"位置信息，而是从几何角度，把词的向量<strong>旋转</strong>一个角度。位置越远，旋转角度越大。这样，两个词之间的<strong>相对位置</strong>直接由它们旋转后的内积决定——不需要额外存储位置向量。</p>
+
+<div class="callout">
+  <div class="callout-title">两种位置编码的对比</div>
+  <table>
+    <tr><th>方案</th><th>原论文/代表模型</th><th>方式</th><th>优势</th><th>缺点</th></tr>
+    <tr><td>正弦编码</td><td>Attention Is All You Need (2017)</td><td>加法：词嵌入 + 位置向量</td><td>外推性强、无需学习</td><td>位置与语义混合</td></tr>
+    <tr><td>绝对位置嵌入</td><td>BERT / GPT-2</td><td>学出来的位置向量</td><td>更灵活</td><td>长度受限、不能外推</td></tr>
+    <tr><td><strong>RoPE</strong></td><td>LLaMA / GPT-4 / Qwen</td><td>旋转：注意力计算中夹角</td><td>天然编码相对位置、外推性好</td><td>略复杂</td></tr>
+    <tr><td>ALiBi</td><td>BLOOM / MPT</td><td>在 attention score 上加线性偏置</td><td>超长文本友好</td><td>有损位置精度</td></tr>
+  </table>
+</div>
+
+<p>你不需要现在就搞懂 RoPE 的数学细节，只需要记住一句话：</p>
+
+<blockquote style="font-family: var(--font-serif); font-size: 1.1rem; text-align: center; padding: var(--space-lg); margin: var(--space-xl) 0; color: var(--color-accent-dark);">
+  "位置编码的存在，是因为 Self-Attention 本身不知道'谁在谁之前'。<br>
+  RoPE 之所以取代正弦编码，是因为它让'相对距离'变成了可计算的东西。"
+</blockquote>
+
+<!-- Section 5: Full Block -->
+<h2>5. 一个完整的 Transformer Block 长什么样？</h2>
+
+<p>现在我们有了全部原料，一个标准的 Transformer layer（以 GPT 的 Decoder-Only 为例）看起来是这样的：</p>
+
+<pre><code>输入 x ───────────────────────────────────────┐
+       │                                         │
+       ▼                                         │
+  [LayerNorm] ──→ MultiHeadAttention ──→ 残差连接 ─┤
+       │                    │                    │
+       │                    ▼                    │
+       │              输出 z                     │
+       │                                         │
+       ▼                                         │
+  [LayerNorm] ──→ FeedForward(MLP) ──→ 残差连接 ─┘
+       │
+       ▼
+  输出到下一层</code></pre>
+
+<p>每个 block 有三件重要的事情发生：</p>
+
+<ul>
+  <li><strong>Self-Attention</strong>："我去看整句话"</li>
+  <li><strong>残差连接 + LayerNorm</strong>：让梯度能穿越深层，训练稳定<span class="sidenote"><span class="sidenote-number">9</span> 为什么 LayerNorm 放在前面（Pre-LN）而不是后面（Post-LN）？GPT-2 以后发现 Pre-LN 更稳定——先做归一化再计算，防止前期层输出爆炸。</span></li>
+  <li><strong>Feed-Forward（MLP）</strong>：每个位置独立地做"思考"——两个大矩阵夹着非线性激活。FFN 存储了模型大部分的事实知识。</li>
+</ul>
+
+<p>这些 block 被堆叠几十层（GPT-3 是 96 层），这就是"深度"的来源——不是一次理解整句话，而是<strong>逐层提炼</strong>。</p>
+
+<!-- Section 6: Summary -->
+<h2>6. 两节课的拼图</h2>
+
+<p>把第1课和第2课拼在一起，你现在理解了 Transformer 的核心骨架：</p>
+
+<table>
+  <tr><th>组件</th><th>作用</th><th>关键理解</th></tr>
+  <tr><td>Self-Attention</td><td>全局关联</td><td>每个词同时看向所有词</td></tr>
+  <tr><td>Multi-Head</td><td>多视角分析</td><td>不同头学不同关系类型</td></tr>
+  <tr><td>Positional Encoding</td><td>注入顺序</td><td>原本无序的输入，需要位置信息</td></tr>
+  <tr><td>FFN / MLP</td><td>独立"思考"</td><td>存储事实、进行非线性变换</td></tr>
+  <tr><td>残差 + LayerNorm</td><td>训练稳定</td><td>让梯度在深层网络中流动</td></tr>
+</table>
+
+<p>下周我们将进入第3课——<strong>预训练</strong>：模型是怎么从随机参数变成"能说话"的？</p>
+
+<!-- Exercise -->
+<div class="exercise">
+  <div class="exercise-title">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="10" stroke="#7C5CFC" stroke-width="2"/><path d="M7 11L10 14L15 8" stroke="#7C5CFC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    自测练习
+  </div>
+  
+  <div class="exercise-question">
+    <p><strong>Q1.</strong> 为什么 Multi-Head 被称为"多头"而不是"多视线"，它和我们实际看到的多个视角有什么共通之处？</p>
+  </div>
+  
+  <div class="exercise-question">
+    <p><strong>Q2.</strong> 如果所有的头都学出了一模一样的注意力模式，Multi-Head 就退化了。这在实际训练中有可能发生吗？为什么模型会自动避免这种情况？</p>
+  </div>
+  
+  <div class="exercise-question">
+    <p><strong>Q3.</strong> 为什么 Self-Attention 对词序不敏感？请用 Q×K<sup>T</sup> 的数学表达式解释（提示：如果不给位置信息，Attention 只依赖词的内容向量本身）。</p>
+  </div>
+  
+  <div class="exercise-question">
+    <p><strong>Q4.</strong> 假设 GPT 的词嵌入维度是 768，用 12 个头。每个头的 Q/K/V 投影矩阵是什么形状？拼接后乘 W<sup>O</sup> 时，W<sup>O</sup> 又是什么形状？</p>
+  </div>
+  
+  <div class="exercise-question">
+    <p><strong>Q5.</strong> 编解码器和只看编码器的模型（如 GPT）在位置编码上有区别吗？为什么只用 Decoder 的 GPT 还需要位置编码？</p>
+  </div>
+</div>
+
+<!-- Next Lesson -->
+<div style="margin: var(--space-2xl) 0 var(--space-xl);">
+  <a href="0003-pretraining-next-token-prediction.html" class="next-lesson">
+    <div>
+      <div class="next-lesson-label">下一课</div>
+      <div class="next-lesson-title">预训练：让模型学会说话</div>
+    </div>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="#7C5CFC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+</div>
+
+<!-- Recommended -->
+<div class="recommended">
+  <h3>这节课的主推荐资源</h3>
+  <p style="margin:0; font-size:0.9rem;">
+    <a href="https://poloclub.github.io/transformer-explainer/" target="_blank">Transformer Explainer (交互式)</a> — 打开这个页面，你可以亲手操作 Multi-Head Attention 的每一层、每一个头。滑动不同的头，观察它们关注的模式差异——这是最直观感受"多头"的学习方法。
+  </p>
+  <p style="margin-top: var(--space-md); font-size:0.85rem; color: var(--color-text-faint);">
+    补充：<a href="https://nlp.seas.harvard.edu/annotated-transformer/" target="_blank">Annotated Transformer</a> — 想深入看 Multi-Head 和位置编码的 PyTorch 具体实现？这是逐行注释的原文复现实验，每个组件都写得清清楚楚。
+  </p>
+</div>
+
+<!-- Ask follow-up -->
+<div class="callout" style="margin-top: var(--space-xl);">
+  <div class="callout-title">有问题就问我</div>
+  <p style="margin:0;">Multi-Head 的拆开-拼接-投影操作有什么让你困惑的地方？位置编码的"外推性"是否让你产生新的疑问？把练习的答案发给我——我会根据你的理解深度调整预训练课的难度。</p>
+</div>
+
+<!-- Footer -->
+<div class="lesson-footer" style="text-align:center; color:var(--color-text-faint); font-size:0.8rem;">
+  <p>Lesson 02 / <a href="../MISSION.md">大模型训练全流程</a> / <a href="0001-self-attention-intuition.html">← 上一课</a></p>
+</div>
+
+</div>
+</body>
+</html>

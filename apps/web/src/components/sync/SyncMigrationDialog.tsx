@@ -81,9 +81,28 @@ export function SyncMigrationDialog() {
       const { projects, mindmaps, tasks } = await fetchAllFromCloud()
 
       await db.transaction('rw', [db.projects, db.mindmaps, db.tasks], async () => {
-        if (projects.length) await db.projects.bulkPut(projects)
-        if (mindmaps.length) await db.mindmaps.bulkPut(mindmaps)
-        if (tasks.length) await db.tasks.bulkPut(tasks)
+        // 以云端为准：先删除本地多余记录，再写入云端数据
+        if (projects.length > 0) {
+          const localProjectIds = (await db.projects.toArray()).map((p) => p.id)
+          const cloudProjectIds = new Set(projects.map((p) => p.id))
+          const toDelete = localProjectIds.filter((id) => !cloudProjectIds.has(id))
+          if (toDelete.length > 0) await db.projects.bulkDelete(toDelete)
+          await db.projects.bulkPut(projects)
+        }
+        if (mindmaps.length > 0) {
+          const localMindmapIds = (await db.mindmaps.toArray()).map((m) => m.id)
+          const cloudMindmapIds = new Set(mindmaps.map((m) => m.id))
+          const toDelete = localMindmapIds.filter((id) => !cloudMindmapIds.has(id))
+          if (toDelete.length > 0) await db.mindmaps.bulkDelete(toDelete)
+          await db.mindmaps.bulkPut(mindmaps)
+        }
+        if (tasks.length > 0) {
+          const localTaskIds = (await db.tasks.toArray()).map((t) => t.id)
+          const cloudTaskIds = new Set(tasks.map((t) => t.id))
+          const toDelete = localTaskIds.filter((id) => !cloudTaskIds.has(id))
+          if (toDelete.length > 0) await db.tasks.bulkDelete(toDelete)
+          await db.tasks.bulkPut(tasks)
+        }
       })
 
       toast.success('已从云端恢复数据', {
