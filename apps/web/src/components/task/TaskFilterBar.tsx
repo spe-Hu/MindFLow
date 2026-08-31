@@ -125,7 +125,7 @@ export function TaskFilterBar() {
             className={cn(
               'w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2',
               filters.status === opt.value
-                ? 'bg-primary-50 text-primary-700'
+                ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
                 : 'hover:bg-bg-elevated text-text-secondary'
             )}
           >
@@ -149,7 +149,7 @@ export function TaskFilterBar() {
             className={cn(
               'w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2',
               filters.priority === opt.value
-                ? 'bg-primary-50 text-primary-700'
+                ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
                 : 'hover:bg-bg-elevated text-text-secondary'
             )}
           >
@@ -173,7 +173,7 @@ export function TaskFilterBar() {
             className={cn(
               'w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors',
               activeDueLabel === opt.label
-                ? 'bg-primary-50 text-primary-700'
+                ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
                 : 'hover:bg-bg-elevated text-text-secondary'
             )}
           >
@@ -201,7 +201,7 @@ export function TaskFilterBar() {
             className={cn(
               'w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors',
               sortBy === opt.value
-                ? 'bg-primary-50 text-primary-700'
+                ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
                 : 'hover:bg-bg-elevated text-text-secondary'
             )}
           >
@@ -251,7 +251,7 @@ function FilterDropdown({
         className={cn(
           'h-7 px-2.5 rounded-full text-xs flex items-center gap-1 transition-colors border',
           active
-            ? 'bg-primary-50 text-primary-700 border-primary-200'
+            ? 'bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900/20 dark:text-primary-300 dark:border-primary-800'
             : 'bg-bg-elevated text-text-secondary border-transparent hover:border-border-hover'
         )}
       >

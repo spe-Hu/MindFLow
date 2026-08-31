@@ -208,7 +208,7 @@ export function GlobalSearch() {
       high: 'bg-priority-high',
       medium: 'bg-priority-medium',
       low: 'bg-priority-low',
-      urgent: 'bg-status-error',
+      urgent: 'bg-priority-urgent',
     }
     return <span className={cn('h-1.5 w-1.5 rounded-full', colors[p || ''] || 'bg-text-muted')} />
   }
@@ -230,7 +230,7 @@ export function GlobalSearch() {
         onClick={() => setSearchOpen(false)}
       />
 
-      <div className="relative w-full max-w-[640px] mx-4 bg-bg-surface rounded-xl shadow-2xl border border-border-default overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-[640px] mx-4 bg-bg-surface rounded-xl shadow-lg border border-border-default overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border-default">
           <Search className="h-5 w-5 text-text-muted shrink-0" />
           <input

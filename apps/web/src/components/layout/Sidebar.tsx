@@ -87,7 +87,7 @@ function NavIcon({
           onClick={onClick}
           aria-label={label}
           className={cn(
-            'relative w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-fast ease-smooth outline-none',
+            'relative w-11 h-11 rounded-lg flex items-center justify-center transition-all duration-fast ease-smooth outline-none',
             active
               ? 'bg-primary-100/70 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400'
               : 'text-text-muted hover:text-text-secondary hover:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-primary-400/50'
@@ -385,7 +385,7 @@ export function Sidebar() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => navigate('/dashboard')}
-                className="w-11 h-11 rounded-xl flex items-center justify-center mb-2 bg-primary-600 text-white shadow-sm hover:bg-primary-700 hover:shadow-md transition-all duration-fast"
+                className="w-11 h-11 rounded-lg flex items-center justify-center mb-2 bg-primary-600 text-white shadow-sm hover:bg-primary-700 hover:shadow-md transition-all duration-fast"
                 aria-label="MindFlow"
               >
                 <LayoutDashboard className="h-5 w-5" />
@@ -439,7 +439,7 @@ export function Sidebar() {
                     <button
                       onClick={() => handleProjectClick(p)}
                       className={cn(
-                        'group relative w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-fast ease-smooth outline-none',
+                        'group relative w-11 h-11 rounded-lg flex items-center justify-center transition-all duration-fast ease-smooth outline-none',
                         isActive
                           ? 'bg-bg-elevated shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]'
                           : 'hover:bg-bg-elevated/70',
@@ -469,7 +469,7 @@ export function Sidebar() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setNewProjectDialogOpen(true)}
-                  className="w-11 h-11 rounded-xl flex items-center justify-center text-text-muted hover:text-primary-600 hover:bg-primary-100/50 transition-all duration-fast outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50"
+                  className="w-11 h-11 rounded-lg flex items-center justify-center text-text-muted hover:text-primary-600 hover:bg-primary-100/50 transition-all duration-fast outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50"
                   aria-label="新建项目"
                 >
                   <Plus className="h-5 w-5" />
@@ -483,7 +483,7 @@ export function Sidebar() {
                 <button
                   onClick={() => navigate('/settings')}
                   className={cn(
-                    'relative w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-fast outline-none',
+                    'relative w-11 h-11 rounded-lg flex items-center justify-center transition-all duration-fast outline-none',
                     isSettings
                       ? 'bg-primary-100/70 text-primary-600'
                       : 'text-text-muted hover:text-text-secondary hover:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-primary-400/50'
@@ -527,10 +527,8 @@ export function Sidebar() {
       <>
         <aside className="w-64 flex flex-col border-r border-border-default bg-bg-surface shrink-0 z-20">
           {/* Brand Header — 简洁图标栏，不重复 MindFlow 文字（顶部 Header 已有） */}
-          <div className="flex items-center justify-between px-3.5 py-3">
-            <div className="h-8 w-8 rounded-lg bg-primary-600 flex items-center justify-center text-white shadow-sm">
-              <BarChart3 className="h-4 w-4" />
-            </div>
+          <div className="flex items-center justify-between px-3 py-3">
+            <img src="/favicon.svg" alt="" className="h-8 w-8" />
             <button
               onClick={toggleSidebar}
               className="h-7 w-7 rounded-md flex items-center justify-center text-text-muted hover:text-text-secondary hover:bg-bg-elevated transition-all duration-fast"
@@ -540,7 +538,7 @@ export function Sidebar() {
             </button>
           </div>
 
-          <Separator className="mx-3.5 w-auto" />
+          <Separator className="mx-3 w-auto" />
 
           {/* Main Navigation */}
           <div className="px-3 py-2.5 flex flex-col gap-0.5">
@@ -570,14 +568,14 @@ export function Sidebar() {
             />
           </div>
 
-          <Separator className="mx-3.5 w-auto" />
+          <Separator className="mx-3 w-auto" />
 
           {/* Local Workspace Section */}
           <div className="px-3 py-2">
             <LocalWorkspacePanel />
           </div>
 
-          <Separator className="mx-3.5 w-auto" />
+          <Separator className="mx-3 w-auto" />
 
           {/* Projects Section */}
           <div className="flex-1 overflow-y-auto px-3 py-2 min-h-0">
@@ -696,7 +694,7 @@ export function Sidebar() {
               ))}
               {projects.length === 0 && (
                 <div className="flex flex-col items-center gap-2 py-5 px-2 text-center">
-                  <div className="w-9 h-9 rounded-xl bg-bg-elevated flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-lg bg-bg-elevated flex items-center justify-center">
                     <FolderOpen className="h-4 w-4 text-text-muted" />
                   </div>
                   <span className="text-xs text-text-muted">暂无项目</span>

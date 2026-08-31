@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, Menu, LayoutDashboard, LogOut, Settings, Download } from 'lucide-react'
+import { Search, Menu, LogOut, Settings, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -52,9 +52,7 @@ export function Header({ className }: HeaderProps) {
           <Menu className="h-5 w-5 text-text-secondary" />
         </Button>
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-md bg-primary-600 flex items-center justify-center">
-            <LayoutDashboard className="h-3.5 w-3.5 text-white" />
-          </div>
+          <img src="/favicon.svg" alt="" className="h-7 w-7" />
           <span className="text-sm font-semibold text-text-primary">MindFlow</span>
         </div>
       </div>

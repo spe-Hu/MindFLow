@@ -64,7 +64,7 @@ export function ViewHeader({
         {project && (
           <div className="group flex items-center gap-1.5 min-w-0">
             <h2
-              className="text-sm font-medium text-text-primary truncate max-w-[160px] cursor-text"
+              className="text-sm font-medium text-text-primary truncate max-w-[200px] cursor-text"
               title="点击或双击编辑项目名"
               onClick={(e) => {
                 const target = e.currentTarget

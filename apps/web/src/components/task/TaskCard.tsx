@@ -48,9 +48,9 @@ export function TaskCard({ task, projectColor, onClick }: TaskCardProps) {
     <div
       onClick={onClick}
       className={cn(
-        'bg-bg-surface border border-border-default rounded-md p-3',
+        'bg-bg-surface border border-border-default rounded-lg p-3',
         'hover:shadow-sm hover:border-border-hover transition-all duration-fast cursor-pointer',
-        task.status === 'done' && 'opacity-65',
+        task.status === 'done' && 'opacity-60',
         dueInfo?.type === 'overdue' && 'border-l-[3px] border-l-status-error'
       )}
     >

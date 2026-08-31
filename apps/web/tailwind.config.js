@@ -6,7 +6,7 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#7C5CFC',
+          DEFAULT: 'var(--color-primary)',
           50: '#f3f0ff',
           100: '#ece7ff',
           200: '#ddd4ff',
@@ -17,6 +17,7 @@ export default {
           700: '#6d4ef0',
           800: '#5a3fd6',
           900: '#4a32b0',
+          foreground: 'var(--text-on-primary)',
           ring: 'rgba(124, 92, 252, 0.35)',
           subtle: 'rgba(124, 92, 252, 0.10)',
         },
@@ -35,6 +36,12 @@ export default {
           hover: 'var(--border-hover)',
           focus: 'var(--border-focus)',
         },
+        secondary: {
+          DEFAULT: 'var(--secondary)',
+          foreground: 'var(--secondary-foreground)',
+        },
+        ring: 'var(--ring)',
+        input: 'var(--input)',
         popover: {
           DEFAULT: 'var(--popover)',
           foreground: 'var(--popover-foreground)',
@@ -61,6 +68,7 @@ export default {
           success: '#3FB950',
           warning: '#D29922',
           error: '#EF4444',
+          info: '#3B82F6',
         },
         priority: {
           high: '#EF4444',

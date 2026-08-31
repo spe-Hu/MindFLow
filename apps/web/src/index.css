@@ -1,3 +1,5 @@
+@import 'tw-animate-css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -133,10 +135,10 @@
   }
 
   html {
-    color-scheme: light dark;
+    color-scheme: light;
   }
 
-  [data-theme='dark'] html {
+  html[data-theme='dark'] {
     color-scheme: dark;
   }
 }

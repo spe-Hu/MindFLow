@@ -68,8 +68,8 @@ function StatCard({
     <Wrapper
       onClick={onClick}
       className={cn(
-        'bg-bg-surface border border-border-default rounded-xl p-4 flex items-center gap-3.5 text-left w-full',
-        onClick && 'hover:border-border-hover hover:shadow-sm transition-all cursor-pointer'
+        'bg-bg-surface rounded-xl p-4 flex items-center gap-3.5 text-left w-full shadow-sm',
+        onClick && 'hover:shadow-md transition-all cursor-pointer'
       )}
     >
       <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', colorClass)}>
