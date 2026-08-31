@@ -96,16 +96,28 @@ const TOTAL_W   = SIDEBAR_W + CANVAS_W // 110 + 540 = 650
    - 第四层一个合并节点，居中连接两个叶子
    - 看板面板放右下，和任何节点水平/垂直都不接触
 ───────────────────────────────────────────── */
-const NODES = [
-  { id: 'root', label: '产品规划',      t: 48,  l: 220, w: 100, h: 32, v: 'primary' as const,           d: 0.15 },
-  { id: 'n1',   label: '市场调研',      t: 118, l: 98,  w: 86,  h: 26,                                 d: 0.35 },
-  { id: 'n2',   label: '原型设计',      t: 118, l: 356, w: 86,  h: 26,                                 d: 0.4  },
-  { id: 'n3',   label: '竞品分析',      t: 188, l: 42,  w: 80,  h: 24, v: 'task' as const, badge: 'P1', d: 0.5  },
-  { id: 'n4',   label: '用户访谈',      t: 188, l: 148, w: 80,  h: 24, v: 'task' as const, badge: 'P2', d: 0.55 },
-  { id: 'n5',   label: 'UI 设计',       t: 188, l: 270, w: 72,  h: 24, v: 'task' as const, badge: 'P3', d: 0.6  },
-  { id: 'n6',   label: '技术选型',      t: 188, l: 376, w: 80,  h: 24,                                 d: 0.65 },
-  { id: 'n7',   label: '开发评审 → 看板', t: 248, l: 205, w: 130, h: 28, v: 'task' as const,              d: 0.75 },
-] as const
+type MapNode = {
+  id: string
+  label: string
+  t: number
+  l: number
+  w: number
+  h: number
+  v?: 'primary' | 'task'
+  badge?: string
+  d: number
+}
+
+const NODES: readonly MapNode[] = [
+  { id: 'root', label: '产品规划',      t: 48,  l: 220, w: 100, h: 32, v: 'primary',           d: 0.15 },
+  { id: 'n1',   label: '市场调研',      t: 118, l: 98,  w: 86,  h: 26,                         d: 0.35 },
+  { id: 'n2',   label: '原型设计',      t: 118, l: 356, w: 86,  h: 26,                         d: 0.4  },
+  { id: 'n3',   label: '竞品分析',      t: 188, l: 42,  w: 80,  h: 24, v: 'task', badge: 'P1', d: 0.5  },
+  { id: 'n4',   label: '用户访谈',      t: 188, l: 148, w: 80,  h: 24, v: 'task', badge: 'P2', d: 0.55 },
+  { id: 'n5',   label: 'UI 设计',       t: 188, l: 270, w: 72,  h: 24, v: 'task', badge: 'P3', d: 0.6  },
+  { id: 'n6',   label: '技术选型',      t: 188, l: 376, w: 80,  h: 24,                         d: 0.65 },
+  { id: 'n7',   label: '开发评审 → 看板', t: 248, l: 205, w: 130, h: 28, v: 'task',              d: 0.75 },
+]
 
 /* 节点几何辅助函数 */
 const mid = (n: typeof NODES[number]) => n.l + n.w / 2

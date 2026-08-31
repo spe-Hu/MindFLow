@@ -2,17 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 jobs:
-  lint-and-build:
+  lint-test-build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
-
     steps:
       - uses: actions/checkout@v4
 
@@ -20,20 +16,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: apps/web/package-lock.json
+          cache: 'npm' # 使用仓库根目录的 package-lock.json
 
+      # monorepo：根 lockfile 统一安装所有 workspace 依赖
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: Lint (web)
+        run: npm run lint:web
 
-      - name: Build
-        run: npm run build
+      - name: Lint (landing)
+        run: npm run lint:landing
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Build (web)
+        run: npm run build:web
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder' }}
+
+      - name: Build (landing)
+        run: npm run build:landing
 
   e2e:
     runs-on: ubuntu-latest
@@ -45,21 +50,15 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: tests/e2e/package-lock.json
 
-      - name: Install frontend dependencies
-        working-directory: apps/web
-
-        run: npm ci
-
-      - name: Install E2E dependencies
-        working-directory: tests/e2e
+      # Playwright 由根 devDependencies 提供，tests/e2e/package.json 无依赖
+      - name: Install dependencies
         run: npm ci
 
       - name: Install Playwright browsers
-        working-directory: tests/e2e
-        run: npx playwright install chromium
+        run: npx playwright install chromium --with-deps
 
+      # webServer 由 playwright.config.ts 自动启动（dev server :5173）
       - name: Run E2E tests
         working-directory: tests/e2e
         run: npx playwright test all-journeys.spec.ts --config playwright.config.ts
