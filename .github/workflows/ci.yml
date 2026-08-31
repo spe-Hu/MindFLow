@@ -59,11 +59,15 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       # webServer 由 playwright.config.ts 自动启动（dev server :5173）
+      # 真实 Supabase env 是必需的：mock 登录把 session 写进以项目 ref 命名的
+      # localStorage 键，占位 URL 会让 sync 相关 journey 找不到会话。
       - name: Run E2E tests
         working-directory: tests/e2e
         run: npx playwright test all-journeys.spec.ts --config playwright.config.ts
         env:
           CI: true
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder' }}
 
       - name: Upload test results
         if: failure()
