@@ -27,6 +27,9 @@ const day15 = 15
 const day20 = 20
 const day25 = 25
 const dayFuture = 25 // 用于未来月份测试
+// CAL-19 兜底任务：月初（<10 号）或月末周一等情况下，固定日期任务都不在本周，
+// 导致周视图断言凭运气通过。额外造一个"今天到期"的任务保证周视图必有内容。
+const WEEK_TASK_NAME = 'W-今周任务'
 
 function isoDate(y: number, m: number, d: number): string {
   // m: 0-indexed month
@@ -123,7 +126,11 @@ export async function runJourney4(page: Page) {
     await addChildTaskWithDueDate(page, `A-任务${day25}号B`, isoDate(year, month, day25), 'medium')
     await addChildTaskWithDueDate(page, `A-任务${day25}号C`, isoDate(year, month, day25), 'low')
     await addChildTaskWithDueDate(page, `A-任务${day25}号D`, isoDate(year, month, day25), 'high')
-    results.push({ name: '准备: 项目 A + 7 任务 (含 4 同日任务)', pass: true })
+    // CAL-19 兜底：避开 day25，防止干扰 CAL-6 的 "+N 个任务" 计数断言
+    if (now.getDate() !== day25) {
+      await addChildTaskWithDueDate(page, WEEK_TASK_NAME, isoDate(year, month, now.getDate()), 'medium')
+    }
+    results.push({ name: '准备: 项目 A + 任务 (含 4 同日任务)', pass: true })
   } catch (e: any) {
     results.push({ name: '准备: 项目 A + 7 任务 (含 4 同日任务)', pass: false, detail: e.message })
     return results
@@ -446,7 +453,7 @@ export async function runJourney4(page: Page) {
   try {
     const calText = await page.locator('main').innerText()
     // 有任务在本周内即可（不严格限定某天，因为"今天"决定本周范围）
-    const weeklyTasks = [`A-任务${day10}号`, `A-任务${day15}号`, `A-任务${day20}号`, `A-任务${day25}号A`]
+    const weeklyTasks = [`A-任务${day10}号`, `A-任务${day15}号`, `A-任务${day20}号`, `A-任务${day25}号A`, WEEK_TASK_NAME]
     const hasAnyTask = weeklyTasks.some((t) => calText.includes(t))
     if (!hasAnyTask) {
       throw new Error('周视图未显示本周内的任务')
