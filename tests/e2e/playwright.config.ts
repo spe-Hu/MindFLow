@@ -17,7 +17,8 @@ export default defineConfig({
   /* 自动起服务：本地复用已运行的 dev server，CI 从零启动。
      用 dev server 而非 preview 构建，避免 PWA service worker 干扰测试。 */
   webServer: {
-    command: 'cd ../.. && npm run dev:web -- --port 5173 --strictPort',
+    // 直接调 vite：经 npm workspace 转发 --port 参数会丢失
+    command: 'cd ../../apps/web && npx vite --port 5173 --strictPort',
     url: 'http://localhost:5173',
     timeout: 180000,
     reuseExistingServer: !process.env.CI,
