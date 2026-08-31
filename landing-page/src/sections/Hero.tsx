@@ -2,12 +2,9 @@ import { motion } from 'framer-motion'
 import { ArrowRight } from '@phosphor-icons/react'
 
 /* ═══════════════════════════════════════════════════
-   产品 Mock UI — 大幅增加间距，彻底消除重叠
-   策略：
-   1. Canvas 宽度充裕（540）→ 节点横向拉开
-   2. 垂直间距每层 > 36px
-   3. 看板面板缩小、右下定位、和节点不重叠
-   4. 删除节点详情面板（多余且干扰）
+   产品 Mock —— 深色窗框里的思维导图工作台
+   调色对齐应用暗色模式的中性色阶，品牌紫只出现在
+   节点/连线/徽标内部（Cursor 式：彩色留给产品本身）。
    ═══════════════════════════════════════════════════ */
 
 function SidebarStrip({ delay }: { delay: number }) {
@@ -16,7 +13,7 @@ function SidebarStrip({ delay }: { delay: number }) {
       initial={{ opacity: 0, x: -6 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, delay }}
-      className="h-5 rounded-md bg-[#F5F5F4] w-full"
+      className="h-5 rounded-md bg-[#242019] w-full"
     />
   )
 }
@@ -40,13 +37,14 @@ function Node({
   badge?: string
   delay?: number
 }) {
-  const base = 'absolute flex items-center justify-center text-[11px] font-medium rounded-xl whitespace-nowrap shadow-sm select-none'
+  const base =
+    'absolute flex items-center justify-center text-[11px] font-medium rounded-xl whitespace-nowrap select-none'
   const cls =
     variant === 'primary'
-      ? `${base} bg-[#7C5CFC] text-white shadow-[0_4px_16px_rgba(124,92,252,0.28)]`
+      ? `${base} bg-brand text-white shadow-[0_8px_24px_rgba(124,92,252,0.35)]`
       : variant === 'task'
-      ? `${base} bg-white text-[#7C5CFC] border-[1.5px] border-[#7C5CFC]/30`
-      : `${base} bg-white text-[#555] border border-[#E5E5E5]`
+      ? `${base} bg-[#211D19] text-brand-soft border-[1.5px] border-brand/40`
+      : `${base} bg-[#211D19] text-[#C9C2B6] border border-lineDark`
 
   return (
     <motion.div
@@ -58,7 +56,7 @@ function Node({
     >
       {children}
       {badge && (
-        <span className="ml-1.5 inline-flex h-[14px] items-center rounded px-[3px] text-[7px] font-bold bg-[#7C5CFC]/10 text-[#7C5CFC]">
+        <span className="ml-1.5 inline-flex h-[14px] items-center rounded px-[3px] text-[7px] font-bold bg-brand/15 text-brand-soft">
           {badge}
         </span>
       )}
@@ -70,7 +68,7 @@ function Link({ ax, ay, bx, by, delay = 0 }: { ax: number; ay: number; bx: numbe
   return (
     <motion.line
       initial={{ pathLength: 0, opacity: 0 }}
-      animate={{ pathLength: 1, opacity: 0.3 }}
+      animate={{ pathLength: 1, opacity: 0.45 }}
       transition={{ duration: 0.6, delay }}
       x1={ax}
       y1={ay}
@@ -82,20 +80,17 @@ function Link({ ax, ay, bx, by, delay = 0 }: { ax: number; ay: number; bx: numbe
   )
 }
 
-/* ── 布局常量 ──────────────────────────────── */
-const SIDEBAR_W = 110          // 侧边栏宽度
-const CANVAS_W  = 540          // 画布宽度（关键：给节点足够空间）
-const CANVAS_H  = 400          // 画布高度
-const TOTAL_W   = SIDEBAR_W + CANVAS_W // 110 + 540 = 650
+/* ── 布局常量（沿用验证过的几何，不要单独改动）── */
+const SIDEBAR_W = 110
+const CANVAS_W  = 540
+const CANVAS_H  = 400
+const TOTAL_W   = SIDEBAR_W + CANVAS_W // 650
 
-/* ── 节点坐标（canvas 内部相对坐标）───────────
-   设计理念：
-   - 根节点居中偏上
-   - 第二层两个节点水平拉开（中心间距 > 140）
-   - 第三层 4 个叶子节点均匀分布（相邻间距 ≥ 24）
-   - 第四层一个合并节点，居中连接两个叶子
-   - 看板面板放右下，和任何节点水平/垂直都不接触
-───────────────────────────────────────────── */
+/* ── 节点坐标 ────────────────────────────────────
+   根节点居中偏上；第二层两节点水平拉开；
+   第三层 4 个叶子均匀分布（间隙 ≥ 24px）；
+   第四层合并节点居中；看板面板在右下不与节点相交。
+──────────────────────────────────────────────── */
 type MapNode = {
   id: string
   label: string
@@ -119,11 +114,9 @@ const NODES: readonly MapNode[] = [
   { id: 'n7',   label: '开发评审 → 看板', t: 248, l: 205, w: 130, h: 28, v: 'task',              d: 0.75 },
 ]
 
-/* 节点几何辅助函数 */
-const mid = (n: typeof NODES[number]) => n.l + n.w / 2
-const btm = (n: typeof NODES[number]) => n.t + n.h
+const mid = (n: (typeof NODES)[number]) => n.l + n.w / 2
+const btm = (n: (typeof NODES)[number]) => n.t + n.h
 
-/* 连接线（从父节点底部中心 → 子节点顶部中心） */
 const LINKS = [
   { ax: mid(NODES[0]), ay: btm(NODES[0]), bx: mid(NODES[1]), by: NODES[1].t, d: 0.3  },
   { ax: mid(NODES[0]), ay: btm(NODES[0]), bx: mid(NODES[2]), by: NODES[2].t, d: 0.32 },
@@ -135,67 +128,42 @@ const LINKS = [
   { ax: mid(NODES[4]), ay: btm(NODES[4]), bx: mid(NODES[7]), by: NODES[7].t, d: 0.7  },
 ] as const
 
-/* ── 间距自查 ────────────────────────────────
-   第三层叶子节点 x 边界：
-   n3: [42, 122]   n4: [148, 228]   n5: [270, 342]   n6: [376, 456]
-   n3→n4 gap: 148-122 = 26px ✓
-   n4→n5 gap: 270-228 = 42px ✓
-   n5→n6 gap: 376-342 = 34px ✓
-
-   第二层节点 x 边界：
-   n1: [98, 184]   n2: [356, 442]
-   中心间距: 356+43 - (98+43) = 399-141 = 258px ✓
-
-   看板面板：right=14, w=120 → left=540-14-120=406
-   n6 right=456 > kanban left=406?  但垂直：
-   n6 bottom=188+24=212, kanban top ≈ 400-14-78=308 → gap=96px ✓
-   水平：n6 right=456, kanban left=406 → n6 在 kanban 左侧内部？
-   不，406 < 456 但 212 < 308（垂直不重叠），所以视觉上不会重叠
-
-   再看 n7: l=205, w=130 → right=335
-   kanban left=406 → gap=71px ✓
-   n7 bottom=270+28=298, kanban top=308 → gap=10px（略紧）
-   把 n7 移到 t=260, bottom=288, gap=20px ✓
-───────────────────────────────────────────── */
-
 function ProductMock() {
   return (
     <div
-      className="rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden shrink-0"
-      style={{ width: TOTAL_W, transform: 'scale(0.88)', transformOrigin: 'right center' }}
+      className="rounded-2xl bg-night-800 ring-1 ring-lineDark shadow-[0_32px_80px_-24px_rgba(23,19,14,0.45)] overflow-hidden"
+      style={{ width: TOTAL_W }}
     >
-      {/* ── Browser chrome ── */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(0,0,0,0.06)] bg-[#FAFAFA]">
-        <div className="h-3 w-3 rounded-full bg-[#E5E5E5]" />
-        <div className="h-3 w-3 rounded-full bg-[#E5E5E5]" />
-        <div className="h-3 w-3 rounded-full bg-[#E5E5E5]" />
+      {/* ── 窗口栏：mono 路径像 Cursor 的终端窗口 ── */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-lineDark">
+        <div className="h-2.5 w-2.5 rounded-full bg-[#3A342C]" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[#3A342C]" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[#3A342C]" />
+        <span className="mx-auto font-mono text-[10px] text-dm-muted">~/mindflow/产品规划 — 思维导图</span>
+        <div className="w-10" />
       </div>
 
-      {/* ── App body ── */}
+      {/* ── 应用主体 ── */}
       <div className="flex" style={{ height: CANVAS_H }}>
         {/* Sidebar */}
         <div
-          className="flex flex-col gap-2 p-3 border-r border-[rgba(0,0,0,0.06)]"
+          className="flex flex-col gap-2 p-3 border-r border-lineDark bg-night-900"
           style={{ width: SIDEBAR_W }}
         >
           <div className="flex items-center gap-2 mb-2">
-            <div className="h-7 w-7 rounded-lg bg-[#7C5CFC] flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </div>
-            <span className="text-[10px] font-bold text-[#222]">MindFlow</span>
+            <img src="/favicon.svg" alt="" className="h-6 w-6" />
+            <span className="text-[10px] font-bold text-dm-text">MindFlow</span>
           </div>
           <SidebarStrip delay={0.15} />
-          <div className="h-5 rounded-md w-full flex items-center px-2 bg-[#7C5CFC]/8">
-            <div className="h-1.5 w-1.5 rounded-full bg-[#7C5CFC] mr-1.5" />
-            <div className="h-2 w-14 rounded bg-[#7C5CFC]/18" />
+          <div className="h-5 rounded-md w-full flex items-center px-2 bg-brand/15">
+            <div className="h-1.5 w-1.5 rounded-full bg-brand mr-1.5" />
+            <div className="h-2 w-14 rounded bg-brand/25" />
           </div>
           <SidebarStrip delay={0.25} />
           <SidebarStrip delay={0.3} />
           <SidebarStrip delay={0.35} />
           <div className="mt-auto">
-            <div className="text-[7px] text-[#999] uppercase tracking-wider mb-1.5 font-semibold">
+            <div className="font-mono text-[7px] text-dm-muted uppercase tracking-[0.18em] mb-1.5">
               最近编辑
             </div>
             <SidebarStrip delay={0.4} />
@@ -203,38 +171,41 @@ function ProductMock() {
           </div>
         </div>
 
-        {/* ── Canvas ── */}
-        <div className="relative flex-1 bg-[#F5F5F4]" style={{ width: CANVAS_W }}>
+        {/* ── 画布 ── */}
+        <div className="relative flex-1 bg-night" style={{ width: CANVAS_W }}>
+          {/* 点阵网格 */}
+          <div
+            className="absolute inset-0 opacity-60"
+            style={{
+              backgroundImage: 'radial-gradient(circle, rgba(242,238,230,0.05) 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+            }}
+          />
           {/* Toolbar */}
           <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20">
-            <div className="h-7 px-3 rounded-lg bg-white border border-[rgba(0,0,0,0.06)] text-[10px] font-semibold text-[#555] flex items-center shadow-sm">
+            <div className="h-7 px-3 rounded-lg bg-night-800 ring-1 ring-lineDark font-mono text-[10px] text-dm-muted flex items-center">
               产品规划 v2024Q4
             </div>
             <div className="flex gap-1.5">
               {[0, 1].map((i) => (
                 <div
                   key={i}
-                  className="h-7 w-7 rounded-lg bg-white border border-[rgba(0,0,0,0.06)] flex items-center justify-center shadow-sm"
+                  className="h-7 w-7 rounded-lg bg-night-800 ring-1 ring-lineDark flex items-center justify-center"
                 >
-                  <div className="h-3 w-3 rounded-full border border-[#E5E5E5]" />
+                  <div className="h-3 w-3 rounded-full border border-[#3A342C]" />
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Connection lines */}
+          {/* 连线 */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-            <defs>
-              <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-                <path d="M0,0 L6,3 L0,6" fill="none" stroke="#7C5CFC" strokeWidth={1} />
-              </marker>
-            </defs>
             {LINKS.map((lk, i) => (
               <Link key={i} ax={lk.ax} ay={lk.ay} bx={lk.bx} by={lk.by} delay={lk.d} />
             ))}
           </svg>
 
-          {/* Mind Map Nodes */}
+          {/* 节点 */}
           {NODES.map((n) => (
             <Node
               key={n.id}
@@ -250,24 +221,24 @@ function ProductMock() {
             </Node>
           ))}
 
-          {/* ── Floating Kanban Panel ── */}
+          {/* ── 浮动看板面板 ── */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.9 }}
-            className="absolute z-20 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
+            className="absolute z-20 rounded-xl bg-night-800 ring-1 ring-lineDark p-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
             style={{ right: 12, bottom: 12, width: 118 }}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <div className="text-[9px] font-bold text-[#333] uppercase tracking-wider">看板视图</div>
-              <div className="h-1 w-5 rounded-full bg-[#F5F5F4]" />
+              <div className="font-mono text-[8px] text-dm-muted uppercase tracking-[0.14em]">看板视图</div>
+              <div className="h-1 w-5 rounded-full bg-[#2B261F]" />
             </div>
             <div className="grid grid-cols-4 gap-1 mb-1">
               {[
-                { bg: '#F0E8FF', hint: 'rgba(124,92,252,0.2)' },
-                { bg: '#E8F5E9', hint: 'rgba(76,175,80,0.2)' },
-                { bg: '#FFF3E0', hint: 'rgba(255,152,0,0.2)' },
-                { bg: '#F5F5F4', hint: 'rgba(0,0,0,0.08)' },
+                { bg: 'rgba(124,92,252,0.16)', hint: 'rgba(124,92,252,0.55)' },
+                { bg: 'rgba(63,185,80,0.14)',  hint: 'rgba(63,185,80,0.5)' },
+                { bg: 'rgba(210,153,34,0.14)', hint: 'rgba(210,153,34,0.5)' },
+                { bg: 'rgba(242,238,230,0.06)', hint: 'rgba(242,238,230,0.18)' },
               ].map((c, i) => (
                 <div key={i} className="h-7 rounded-md flex items-center justify-center" style={{ background: c.bg }}>
                   <div className="h-1 w-4 rounded-full" style={{ background: c.hint }} />
@@ -275,8 +246,8 @@ function ProductMock() {
               ))}
             </div>
             <div className="grid grid-cols-4 gap-1">
-              {['#F0E8FF', '#E8F5E9', '#FFF3E0', '#F5F5F4'].map((bg, i) => (
-                <div key={i} className="h-4 rounded-md opacity-70" style={{ background: bg }} />
+              {['rgba(124,92,252,0.10)', 'rgba(63,185,80,0.09)', 'rgba(210,153,34,0.09)', 'rgba(242,238,230,0.04)'].map((bg, i) => (
+                <div key={i} className="h-4 rounded-md opacity-80" style={{ background: bg }} />
               ))}
             </div>
           </motion.div>
@@ -287,83 +258,71 @@ function ProductMock() {
 }
 
 /* ═══════════════════════════════════════════════════
-   Hero Section
+   Hero —— Cursor 式：居中宣言 + 深色产品窗
    ═══════════════════════════════════════════════════ */
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-white">
-      {/* 背景装饰光晕 */}
-      <div
-        className="pointer-events-none absolute -right-40 top-1/4 h-[600px] w-[600px] rounded-full opacity-[0.06]"
-        style={{ background: 'radial-gradient(circle, #7C5CFC, transparent 60%)' }}
-      />
-      <div
-        className="pointer-events-none absolute -left-20 bottom-0 h-[400px] w-[400px] rounded-full opacity-[0.04]"
-        style={{ background: 'radial-gradient(circle, #7C5CFC, transparent 60%)' }}
-      />
+    <section className="relative overflow-hidden bg-paper">
+      <div className="mx-auto max-w-[1200px] px-6 sm:px-12 pt-36 pb-24 md:pt-44 md:pb-28">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+          className="mx-auto max-w-3xl text-center"
+        >
+          <div className="font-mono text-xs tracking-[0.22em] text-ink-subtle mb-7">
+            [ 思维导图 × 任务管理 ]
+          </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-6 sm:px-12 pt-32 pb-20 md:pt-40 md:pb-28 lg:pt-48 lg:pb-36">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-12 items-center">
-          {/* ── Left copy ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
-          >
-            <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(0,0,0,0.08)] bg-[#FAFAFA] px-3.5 py-1.5 mb-8">
-              <span className="inline-block h-2 w-2 rounded-full bg-brand" />
-              <span className="text-sm font-medium text-ink-muted">思维导图 × 任务管理，在一个工具里</span>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-[-0.035em] leading-[1.08] text-ink">
+            想清楚，做下去，
+            <br />
+            一张图。
+          </h1>
+
+          <p className="mt-6 text-lg md:text-xl leading-relaxed text-ink-muted max-w-2xl mx-auto">
+            在图里发散，点一下就成任务。看板、日历、甘特图
+            从同一张思维导图里自然生长出来。
+          </p>
+
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="https://mindflow-app.pages.dev/auth"
+              className="group inline-flex h-12 items-center gap-2 rounded-xl bg-ink px-7 text-base font-medium text-paper transition-colors duration-150 hover:bg-night"
+            >
+              现在开始
+              <ArrowRight size={17} weight="bold" className="transition-transform duration-150 group-hover:translate-x-0.5" />
+            </a>
+            <a
+              href="#how-it-works"
+              className="inline-flex h-12 items-center rounded-xl border border-line-strong px-7 text-base font-medium text-ink transition-colors duration-150 hover:border-ink"
+            >
+              了解工作方式
+            </a>
+          </div>
+
+          <div className="mt-7 font-mono text-xs text-ink-faint tracking-wide">
+            免费 · 无需信用卡 · 本地优先 · 开源
+          </div>
+        </motion.div>
+
+        {/* ── 深色产品窗 ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 32 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.25, ease: 'easeOut' }}
+          className="mt-16 md:mt-20"
+        >
+          <div className="hero-mock-frame">
+            <div className="hero-mock-inner">
+              <ProductMock />
             </div>
-
-            <h1 className="text-[2.75rem] font-extrabold tracking-tight leading-[1.1] text-ink sm:text-5xl md:text-6xl lg:text-[3.75rem]">
-              从发散到收敛，
-              <br />
-              <span className="text-brand">一张图管到底</span>
-            </h1>
-
-            <p className="mt-6 text-lg leading-relaxed text-ink-subtle max-w-lg">
-              用思维导图整理你的所有想法，一键将节点转化为可执行的任务。实时追踪项目进度，看板、日历、甘特图一手掌控。你的个人项目管理中枢。
-            </p>
-
-            <div className="mt-10 flex flex-wrap items-center gap-4">
-              <a
-                href="https://mindflow-app.pages.dev/auth"
-                className="group inline-flex items-center gap-2 rounded-xl bg-ink px-7 py-3.5 text-base font-semibold text-white transition-all hover:bg-[#1a1a1a] hover:shadow-lg hover:shadow-[rgba(0,0,0,0.12)]"
-              >
-                开始免费使用
-                <ArrowRight size={18} weight="bold" className="transition-transform group-hover:translate-x-1" />
-              </a>
-              <a
-                href="https://mindflow-app.pages.dev/auth"
-                className="inline-flex items-center rounded-xl border border-[rgba(0,0,0,0.1)] bg-white px-7 py-3.5 text-base font-semibold text-ink transition-all hover:border-[rgba(0,0,0,0.18)] hover:bg-[#FAFAFA]"
-              >
-                查看演示
-              </a>
-            </div>
-
-            <div className="mt-10 flex items-center gap-6 text-sm text-ink-faint">
-              {['无需信用卡', '本地优先，数据私有'].map((t) => (
-                <span key={t} className="flex items-center gap-2">
-                  <svg width="14" height="14" fill="none">
-                    <path d="M2 7l4 4 6-8" stroke="#7C5CFC" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  {t}
-                </span>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* ── Right — Product Mock ── */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.9, delay: 0.2, ease: 'easeOut' }}
-            className="relative hidden lg:flex justify-end"
-          >
-            <ProductMock />
-          </motion.div>
-        </div>
+          </div>
+          <div className="mt-5 text-center font-mono text-[11px] text-ink-faint tracking-wide">
+            思维导图 → 任务 · 一个工作台内的真实界面
+          </div>
+        </motion.div>
       </div>
     </section>
   )

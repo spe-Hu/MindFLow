@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { List, CaretDown } from '@phosphor-icons/react'
+import { ArrowUpRight, GithubLogo, List, X } from '@phosphor-icons/react'
 
 const links = [
-  { label: '功能', href: '#features' },
-  { label: '使用指南', href: '#how-it-works' },
-  { label: '用户评价', href: '#social-proof' },
+  { label: '能力', href: '#features' },
+  { label: '工作方式', href: '#how-it-works' },
+  { label: '使用时刻', href: '#moments' },
+  { label: '更新', href: '#changelog' },
 ]
 
 export default function Navbar() {
@@ -13,91 +13,86 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', onScroll)
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   return (
-    <motion.nav
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      className={`fixed top-3 left-1/2 z-50 -translate-x-1/2 px-2 w-full max-w-[680px] transition-all duration-300 ${
+    <nav
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'md:top-4 md:w-auto md:max-w-none md:px-0'
-          : 'md:top-5 md:w-auto md:max-w-none md:px-0'
+          ? 'bg-paper/85 backdrop-blur-md border-b border-line'
+          : 'bg-transparent border-b border-transparent'
       }`}
     >
-      <div
-        className={`flex items-center justify-between rounded-2xl border px-4 py-2.5 backdrop-blur-md transition-all duration-300 md:px-6 md:py-3 ${
-          scrolled
-            ? 'bg-white/90 border-[rgba(0,0,0,0.08)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]'
-            : 'bg-white/70 border-[rgba(0,0,0,0.06)]'
-        }`}
-      >
-        <a href="#" className="flex items-center gap-2 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand">
-            <List size={18} weight="bold" className="text-white" />
-          </div>
-          <span className="text-base font-semibold tracking-tight text-ink">
-            MindFlow
-          </span>
+      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-6 sm:px-12">
+        <a href="#" className="flex items-center gap-2.5">
+          <img src="/favicon.svg" alt="" className="h-7 w-7" />
+          <span className="text-[15px] font-semibold tracking-tight text-ink">MindFlow</span>
         </a>
 
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-7">
           {links.map((l) => (
             <a
               key={l.label}
               href={l.href}
-              className="px-3 py-1.5 text-sm font-medium text-ink-subtle hover:text-ink rounded-lg transition-colors"
+              className="text-sm text-ink-subtle hover:text-ink transition-colors duration-150"
             >
               {l.label}
             </a>
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-4">
           <a
-            href="https://mindflow-app.pages.dev/auth"
-            className="px-4 py-2 text-sm font-medium text-ink rounded-lg border border-[rgba(0,0,0,0.08)] hover:border-[rgba(0,0,0,0.15)] hover:bg-[rgba(0,0,0,0.02)] transition-all"
+            href="https://github.com/spe-Hu/MindFLow"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub"
+            className="text-ink-subtle hover:text-ink transition-colors duration-150"
           >
-            登录
+            <GithubLogo size={20} />
           </a>
           <a
             href="https://mindflow-app.pages.dev/auth"
-            className="px-4 py-2 text-sm font-semibold text-white bg-ink rounded-lg hover:bg-[#1a1a1a] transition-colors">
-            免费使用
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ink px-4 text-sm font-medium text-paper transition-colors duration-150 hover:bg-night"
+          >
+            开始使用
+            <ArrowUpRight size={14} weight="bold" />
           </a>
         </div>
 
         <button
-          className="md:hidden p-1.5 rounded-lg hover:bg-[rgba(0,0,0,0.04)] transition-colors"
+          className="md:hidden p-1.5 text-ink-muted"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="菜单"
         >
-          <CaretDown size={20} className={`text-ink-muted transition-transform ${mobileOpen ? 'rotate-180' : ''}`} />
+          {mobileOpen ? <X size={22} /> : <List size={22} />}
         </button>
       </div>
 
       {mobileOpen && (
-        <div className="mt-2 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white/95 backdrop-blur-xl p-4 shadow-[0_4px_16px_rgba(0,0,0,0.06)] md:hidden">
+        <div className="md:hidden border-t border-line bg-paper/95 backdrop-blur-md px-6 py-4">
           {links.map((l) => (
             <a
               key={l.label}
               href={l.href}
-              className="block py-2 text-sm font-medium text-ink-muted hover:text-ink"
+              className="block py-2.5 text-sm text-ink-muted hover:text-ink"
               onClick={() => setMobileOpen(false)}
             >
               {l.label}
             </a>
           ))}
-          <div className="mt-3 flex gap-2 pt-3 border-t border-[rgba(0,0,0,0.06)]">
-            <a href="https://mindflow-app.pages.dev/auth" className="flex-1 py-2.5 text-center text-sm font-medium text-ink border border-[rgba(0,0,0,0.08)] rounded-xl">登录</a>
-            <a href="https://mindflow-app.pages.dev/auth" className="flex-1 py-2.5 text-center text-sm font-semibold text-white bg-ink rounded-xl">免费使用</a>
-          </div>
+          <a
+            href="https://mindflow-app.pages.dev/auth"
+            className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper"
+          >
+            开始使用
+          </a>
         </div>
       )}
-    </motion.nav>
+    </nav>
   )
 }

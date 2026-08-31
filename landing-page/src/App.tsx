@@ -1,20 +1,24 @@
 import Navbar from './components/Navbar'
 import Hero from './sections/Hero'
+import Manifesto from './sections/Manifesto'
 import Features from './sections/Features'
 import HowItWorks from './sections/HowItWorks'
-import SocialProof from './sections/SocialProof'
+import Moments from './sections/Moments'
+import Changelog from './sections/Changelog'
 import CTA from './sections/CTA'
 import Footer from './sections/Footer'
 
 function App() {
   return (
-    <div className="min-h-screen bg-white text-ink-muted">
+    <div className="min-h-screen bg-paper text-ink-muted">
       <Navbar />
       <main>
         <Hero />
+        <Manifesto />
         <Features />
         <HowItWorks />
-        <SocialProof />
+        <Moments />
+        <Changelog />
         <CTA />
       </main>
       <Footer />
