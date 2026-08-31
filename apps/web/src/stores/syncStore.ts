@@ -1,14 +1,15 @@
 import { create } from 'zustand'
 import {
-  syncProjectToCloud,
-  syncMindmapToCloud,
-  syncTaskToCloud,
-  fetchAllFromCloud,
+  doAutoSync as _doAutoSync,
+  pullFromCloud,
+  pushDirtyRecords,
+  subscribeToRealtime,
+  unsubscribeFromRealtime,
+  scheduleAutoPush as _scheduleAutoPush,
 } from '@/lib/sync'
-import { db } from '@/lib/db'
 import { devLog, devWarn } from '@/lib/devConsole'
 
-type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline'
+type SyncStatus = 'idle' | 'pushing' | 'pulling' | 'syncing' | 'error' | 'offline'
 
 /** Injected dependencies — decouple syncStore from auth/project stores */
 interface SyncDeps {
@@ -16,19 +17,32 @@ interface SyncDeps {
   refreshProjects: () => Promise<void>
 }
 
+interface ConflictInfo {
+  table: string
+  id: string
+  localUpdatedAt: string
+  cloudUpdatedAt: string
+  localVersion: number
+  cloudVersion: number
+}
+
 interface SyncState {
   status: SyncStatus
   lastSyncTime: string | null
   lastError: string | null
   deps: SyncDeps | null
+  conflicts: ConflictInfo[]
 
   setStatus: (status: SyncStatus) => void
-  setLastSyncTime: (time: string) => void
+  setLastSyncAt: (date: Date) => void
+  setSyncError: (error: string) => void
   setLastError: (error: string | null) => void
   setDeps: (deps: SyncDeps) => void
   reset: () => void
+  addConflict: (conflict: ConflictInfo) => void
+  clearConflicts: () => void
 
-  // 核心：双向同步（先 push 本地 → 再 pull 云端）
+  // 核心：双向同步（先 push dirty → 再 pull 云端 + updated_at 比较）
   doAutoSync: () => Promise<void>
 }
 
@@ -43,6 +57,8 @@ export function __resetSyncState() {
     syncDebounceTimer = null
   }
   lastSyncTimestamp = 0
+  safeSetItem('mindflow-last-sync-time', '1970-01-01T00:00:00.000Z')
+  useSyncStore.getState().setLastSyncAt(new Date(0))
 }
 
 function safeGetItem(key: string): string | null {
@@ -66,15 +82,20 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   lastSyncTime: safeGetItem('mindflow-last-sync-time'),
   lastError: null,
   deps: null,
+  conflicts: [],
 
   setStatus: (status) => set({ status }),
-  setLastSyncTime: (time) => {
-    safeSetItem('mindflow-last-sync-time', time)
-    set({ lastSyncTime: time })
+  setLastSyncAt: (date) => {
+    const iso = date.toISOString()
+    safeSetItem('mindflow-last-sync-time', iso)
+    set({ lastSyncTime: iso })
   },
+  setSyncError: (lastError) => set({ lastError, status: 'error' }),
   setLastError: (lastError) => set({ lastError }),
   setDeps: (deps) => set({ deps }),
-  reset: () => set({ status: typeof navigator !== 'undefined' && navigator.onLine ? 'idle' : 'offline', lastError: null }),
+  reset: () => set({ status: typeof navigator !== 'undefined' && navigator.onLine ? 'idle' : 'offline', lastError: null, conflicts: [] }),
+  addConflict: (conflict) => set((s) => ({ conflicts: [...s.conflicts, conflict] })),
+  clearConflicts: () => set({ conflicts: [] }),
 
   doAutoSync: async () => {
     const { deps } = get()
@@ -103,50 +124,8 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       set({ status: 'syncing', lastError: null })
 
       try {
-        // Step 1: Push 本地全部数据到云端
-        const [projects, mindmaps, tasks] = await Promise.all([
-          db.projects.toArray(),
-          db.mindmaps.toArray(),
-          db.tasks.toArray(),
-        ])
-
-        const pushErrors: string[] = []
-        for (const p of projects) {
-          try { await syncProjectToCloud(p) } catch (e: any) { pushErrors.push(e.message) }
-        }
-        for (const m of mindmaps) {
-          try { await syncMindmapToCloud(m) } catch (e: any) { pushErrors.push(e.message) }
-        }
-        for (const t of tasks) {
-          try { await syncTaskToCloud(t) } catch (e: any) { pushErrors.push(e.message) }
-        }
-
-        // Step 2: Pull 云端数据到本地
-        const cloud = await fetchAllFromCloud()
-        await db.transaction('rw', [db.projects, db.mindmaps, db.tasks], async () => {
-          // 以云端为准：先删除本地多余记录，再写入云端数据
-          if (cloud.projects.length > 0) {
-            const localIds = (await db.projects.toArray()).map((p) => p.id)
-            const cloudIds = new Set(cloud.projects.map((p) => p.id))
-            const toDelete = localIds.filter((id) => !cloudIds.has(id))
-            if (toDelete.length > 0) await db.projects.bulkDelete(toDelete)
-            await db.projects.bulkPut(cloud.projects)
-          }
-          if (cloud.mindmaps.length > 0) {
-            const localIds = (await db.mindmaps.toArray()).map((m) => m.id)
-            const cloudIds = new Set(cloud.mindmaps.map((m) => m.id))
-            const toDelete = localIds.filter((id) => !cloudIds.has(id))
-            if (toDelete.length > 0) await db.mindmaps.bulkDelete(toDelete)
-            await db.mindmaps.bulkPut(cloud.mindmaps)
-          }
-          if (cloud.tasks.length > 0) {
-            const localIds = (await db.tasks.toArray()).map((t) => t.id)
-            const cloudIds = new Set(cloud.tasks.map((t) => t.id))
-            const toDelete = localIds.filter((id) => !cloudIds.has(id))
-            if (toDelete.length > 0) await db.tasks.bulkDelete(toDelete)
-            await db.tasks.bulkPut(cloud.tasks)
-          }
-        })
+        // 走 sync.ts 中的核心同步逻辑（push dirty + pull with updated_at comparison）
+        await _doAutoSync()
 
         // 刷新 UI（通过注入的 refreshProjects）
         if (refreshProjects) {
@@ -155,20 +134,10 @@ export const useSyncStore = create<SyncState>((set, get) => ({
 
         const isoNow = new Date().toISOString()
         safeSetItem('mindflow-last-sync-time', isoNow)
-
-        if (pushErrors.length > 0) {
-          const summary = pushErrors.slice(0, 3).join('; ')
-          const more = pushErrors.length > 3 ? ` 等共 ${pushErrors.length} 项失败` : ''
-          const errorMsg = `云端同步失败: ${summary}${more}`
-          devWarn('[Sync] Push completed with errors:', pushErrors)
-          set({ status: 'error', lastSyncTime: isoNow, lastError: errorMsg })
-        } else {
-          set({ status: 'idle', lastSyncTime: isoNow, lastError: null })
-        }
-
-        devLog(`[Sync] Auto-sync complete: ${projects.length} projects, ${mindmaps.length} mindmaps, ${tasks.length} tasks.`)
+        set({ status: 'idle', lastSyncTime: isoNow })
+        devLog('[SyncStore] Auto-sync complete')
       } catch (err: any) {
-        devWarn('[Sync] Auto-sync failed:', err)
+        devWarn('[SyncStore] Auto-sync failed:', err)
         set({ status: 'error', lastError: err.message || '同步失败' })
       }
     }, 500)
@@ -179,4 +148,16 @@ export const useSyncStore = create<SyncState>((set, get) => ({
 export function scheduleAutoSync() {
   const { doAutoSync } = useSyncStore.getState()
   void doAutoSync()
+}
+
+// 轻量 push debounce（3s），只 push dirty，不做 pull
+export function scheduleAutoPush() {
+  _scheduleAutoPush()
+}
+
+// Dev-only: expose for E2E testing
+if (typeof window !== 'undefined') {
+  ;(window as any).__syncStore = useSyncStore
+  ;(window as any).__scheduleAutoSync = scheduleAutoSync
+  ;(window as any).__resetSyncState = __resetSyncState
 }

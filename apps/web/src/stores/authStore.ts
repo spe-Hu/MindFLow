@@ -274,3 +274,8 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 )
+
+// Dev-only: expose for E2E testing
+if (typeof window !== 'undefined' && (window as any).location?.hostname?.includes('localhost')) {
+  ;(window as any).__authStore = useAuthStore
+}

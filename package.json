@@ -20,7 +20,8 @@
     "test:e2e": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1"
+    "@playwright/test": "^1.61.1",
+    "@supabase/supabase-js": "^2.110.0"
   },
   "dependencies": {
     "@types/dompurify": "^3.0.5",

@@ -8,13 +8,17 @@ import { Toaster } from '@/components/ui/sonner'
 import { useProjectStore } from '@/stores/projectStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
-import { scheduleAutoSync, useSyncStore } from '@/stores/syncStore'
+import { scheduleAutoSync, scheduleAutoPush, useSyncStore } from '@/stores/syncStore'
+import { subscribeToRealtime, unsubscribeFromRealtime } from '@/lib/sync'
+import { db } from '@/lib/db'
+import { liveQuery } from 'dexie'
 import { cleanupOrphanedTasks } from '@/lib/taskTreeSync'
 import { toast } from 'sonner'
 
 export function AppLayout() {
   const loadProjects = useProjectStore((s) => s.loadProjects)
   const setNewProjectDialogOpen = useUIStore((s) => s.setNewProjectDialogOpen)
+  const user = useAuthStore((s) => s.user)
   const offlineToastIdRef = useRef<string | number | null>(null)
   const hasAutoSyncedRef = useRef(false)
 
@@ -51,6 +55,41 @@ export function AppLayout() {
     }
     document.addEventListener('visibilitychange', handleVis)
     return () => document.removeEventListener('visibilitychange', handleVis)
+  }, [])
+
+  // --- Realtime: subscribe on login, unsubscribe on logout ---
+  useEffect(() => {
+    if (user) {
+      subscribeToRealtime(user.id)
+    } else {
+      unsubscribeFromRealtime()
+    }
+    return () => {
+      unsubscribeFromRealtime()
+    }
+  }, [user])
+
+  // --- Auto push: Dexie liveQuery watches for dirty records ---
+  useEffect(() => {
+    const observable = liveQuery(async () => {
+      const [c1, c2, c3] = await Promise.all([
+        db.projects.filter((p) => p._localDirty === true).count(),
+        db.mindmaps.filter((m) => m._localDirty === true).count(),
+        db.tasks.filter((t) => t._localDirty === true).count(),
+      ])
+      return c1 + c2 + c3
+    })
+
+    const subscription = observable.subscribe({
+      next: (dirtyCount) => {
+        if (dirtyCount > 0) {
+          scheduleAutoPush()
+        }
+      },
+      error: () => { /* ignore — Dexie liveQuery errors are non-fatal */ },
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   // Global shortcuts

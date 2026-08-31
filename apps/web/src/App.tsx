@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { Loader2 } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
+import '@/stores/syncStore' // Trigger module-load expose for E2E
 
 // Route-level code splitting: lazy-load non-core pages to reduce initial bundle.
 // Pages use NAMED exports, so map them to `default` for React.lazy.

@@ -21,6 +21,10 @@ export interface LocalProject {
   local_dir_id?: string
   /** 最后同步时间（仅 obsidian 项目，用于 LWW 冲突判断） */
   last_synced_at?: Date
+  /** 本地脏标记：自上次成功 push 后被修改过 */
+  _localDirty?: boolean
+  /** 内部同步标记：pull 阶段跳过 Dexie hooks 的 auto-dirty 逻辑 */
+  __syncPull?: boolean
 }
 
 export interface LocalMindmap {
@@ -29,6 +33,10 @@ export interface LocalMindmap {
   tree_data: Record<string, unknown>
   view_state: Record<string, unknown>
   version: number
+  /** 本地脏标记：自上次成功 push 后被修改过 */
+  _localDirty?: boolean
+  /** 内部同步标记：pull 阶段跳过 Dexie hooks 的 auto-dirty 逻辑 */
+  __syncPull?: boolean
 }
 
 export interface AttachmentItem {
@@ -56,6 +64,10 @@ export interface LocalTask {
   user_id?: string
   pomodoro_count?: number
   attachments?: AttachmentItem[]
+  /** 本地脏标记：自上次成功 push 后被修改过 */
+  _localDirty?: boolean
+  /** 内部同步标记：pull 阶段跳过 Dexie hooks 的 auto-dirty 逻辑 */
+  __syncPull?: boolean
 }
 
 export interface LocalSetting {
@@ -63,11 +75,24 @@ export interface LocalSetting {
   value: unknown
 }
 
+/** 离线变更队列记录 */
+export interface LocalPendingChange {
+  id: string
+  table: 'projects' | 'mindmaps' | 'tasks'
+  record_id: string
+  action: 'upsert' | 'delete'
+  payload: Record<string, unknown>
+  created_at: Date
+  retry_count: number
+  error?: string
+}
+
 class MindFlowDB extends Dexie {
   projects!: Table<LocalProject, string>
   mindmaps!: Table<LocalMindmap, string>
   tasks!: Table<LocalTask, string>
   settings!: Table<LocalSetting, string>
+  pending_changes!: Table<LocalPendingChange, string>
 
   constructor() {
     super('mindflow-db')
@@ -101,6 +126,75 @@ class MindFlowDB extends Dexie {
             }
           })
       })
+
+    // ---- version 4: 添加 _localDirty 列（无需修改 store 索引） ----
+    this.version(4).stores({
+      projects: 'id, project_type, name, sort_order, is_archived, last_opened_at',
+      mindmaps: 'id, project_id',
+      tasks: 'id, project_id, node_uid, title, status, priority, due_date',
+      settings: 'key',
+    })
+
+    // ---- version 5: 添加 pending_changes 离线队列 ----
+    this.version(5).stores({
+      projects: 'id, project_type, name, sort_order, is_archived, last_opened_at',
+      mindmaps: 'id, project_id',
+      tasks: 'id, project_id, node_uid, title, status, priority, due_date',
+      settings: 'key',
+      pending_changes: 'id, table, record_id, [table+record_id], created_at',
+    })
+
+    // ---- 同步中间件：自动设置 dirty flag + version + updated_at ----
+    this._setupSyncHooks()
+  }
+
+  private _setupSyncHooks() {
+    const tables = [this.projects, this.mindmaps, this.tasks] as const
+    for (const table of tables) {
+      // creating hook: 新记录也标记为 dirty（首次创建后需要 push）
+      // 注：pull 同步显式传入 _localDirty = false 时尊重该值，避免误触发 autoPush
+      table.hook('creating', function (_primKey, obj) {
+        // 同步 pull 标记：检测并跳过 auto-dirty / version / updated_at
+        if ((obj as any).__syncPull) {
+          delete (obj as any).__syncPull
+          return
+        }
+        if ((obj as any)._localDirty !== false) {
+          ;(obj as any)._localDirty = true
+        }
+        ;(obj as any).version = ((obj as any).version ?? 0) + 1
+        const now = new Date().toISOString()
+        // 如果该表有 updated_at 字段则更新（tasks/projects/mindmaps 都有）
+        if (table.name !== 'settings') {
+          ;(obj as any).updated_at = now
+        }
+      })
+
+      // updating hook: 已有记录被修改时标记 dirty
+      table.hook('updating', function (mods, _primKey, _obj) {
+        const out = { ...mods }
+        // 同步 pull 标记：检测并跳过 auto-dirty / version / updated_at
+        if ((out as any).__syncPull) {
+          delete (out as any).__syncPull
+          return out
+        }
+        // 如果 mods 里已经有 _localDirty = false（push 成功后 clear），不覆盖
+        if (!('_localDirty' in out) || out._localDirty !== false) {
+          out._localDirty = true
+        }
+        // version 递增
+        if (!('version' in out)) {
+          // 需要读取当前 version（通过 this.obj 访问）
+          const current = this.obj as any
+          out.version = (current?.version ?? 0) + 1
+        }
+        // updated_at
+        if (table.name !== 'settings') {
+          out.updated_at = new Date().toISOString()
+        }
+        return out
+      })
+    }
   }
 }
 
