@@ -1,0 +1,50 @@
+name: Deploy
+
+# 推 master 自动部署到 Cloudflare Pages。
+# 需要在仓库 Settings → Secrets 配置（一次性）：
+#   CLOUDFLARE_API_TOKEN  — 带 Cloudflare Pages 编辑权限的 API Token
+#   CLOUDFLARE_ACCOUNT_ID — Cloudflare 账户 ID（Dashboard 右侧栏可见）
+# 未配置时 wrangler-action 报错即失败，不影响 CI 工作流。
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: # 也支持手动触发
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run build:web
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - run: npm run build:landing
+
+      - name: Deploy app (mindflow-app.pages.dev)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/web/dist --project-name mindflow-app
+
+      - name: Deploy landing (mindflow-landing.pages.dev)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy landing-page/dist --project-name mindflow-landing
